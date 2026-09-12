@@ -1,0 +1,27 @@
+# Local environment and private VM configurations
+/.venv/
+/vm/
+.env
+.env.*
+
+# Python and tooling caches
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.mypy_cache/
+
+# Distribution artifacts
+/build/
+/dist/
+*.egg-info/
+
+# OS files
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Task runner cache
+.cache/
+.task/
