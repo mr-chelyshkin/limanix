@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3.53.1'
+
+includes:
+  python:
+    taskfile: https://raw.githubusercontent.com/mr-chelyshkin/tasks/v0.0.2/taskfiles/python/Taskfile.yml
+    internal: true
+    vars:
+      PROJECT_ROOT: .
+
+tasks:
+  ci/fmt:
+    desc: Check Python formatting
+    cmds:
+      - task: python:fmt
+
+  ci/lint:
+    desc: Lint Python
+    cmds:
+      - task: python:lint
+
+  ci/typecheck:
+    desc: Check Python types
+    cmds:
+      - task: python:typecheck
+
+  ci/build:
+    desc: Build the Python sdist and wheel
+    cmds:
+      - task: python:build
+
+  ci/package-check:
+    desc: Build and verify the installed wheel
+    cmds:
+      - task: ci/build
+      - task: python:package/check
+        vars:
+          PACKAGE_COMMAND: limanix --version
+
+  ci/tag:
+    desc: Check RELEASE_TAG against the package version
+    requires:
+      vars: [RELEASE_TAG]
+    cmds:
+      - task: python:tag/check
+        vars:
+          RELEASE_TAG: '{{.RELEASE_TAG}}'
