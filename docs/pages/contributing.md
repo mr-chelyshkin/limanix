@@ -7,7 +7,7 @@ from Python code:
 
 | Content | Source |
 | --- | --- |
-| Guides | Markdown files in `docs/` |
+| Guides | Markdown files in `docs/pages/` |
 | Configuration reference and default TOML | `src/limanix/config.py` |
 | CLI commands and arguments | `build_parser()` in `src/limanix/cli.py` |
 | Python API | Python signatures and docstrings |
@@ -29,7 +29,24 @@ task docs/generate
 Commit `limanix.example.toml` alongside the model change. The configuration
 reference is generated during each documentation build.
 
-## Build the site
+## Preview the site
+
+Start the documentation server in the Python container:
+
+```console
+task docs/serve
+```
+
+Open <http://127.0.0.1:8070>. Changes to the docs and Python code rebuild the
+site and refresh the browser. Press **Ctrl+C** to stop.
+
+To use another port:
+
+```console
+task docs/serve DOCS_PORT=8001
+```
+
+## Check the site
 
 Run the documentation build in the Python CI container:
 

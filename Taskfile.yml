@@ -9,6 +9,24 @@ includes:
       PROJECT_ROOT: .
 
 tasks:
+  docs/serve:
+    desc: Serve documentation locally and rebuild on changes
+    vars:
+      DOCS_PORT: '{{.DOCS_PORT | default "8070"}}'
+    cmds:
+      - task: python:_uv/tool
+        vars:
+          CONTAINER_PORTS: '127.0.0.1:{{.DOCS_PORT}}:{{.DOCS_PORT}}'
+          CONTAINER_ENVS: PYTHONUNBUFFERED=1
+          CMD: >-
+            uv run --locked --group docs sphinx-autobuild
+            --host 0.0.0.0 --port {{.DOCS_PORT}}
+            --watch src/limanix --watch limanix.example.toml
+            --watch docs/conf.py --watch docs/generate.py
+            --watch docs/_static
+            --ignore '*/_generated/*'
+            -E -a -W --keep-going -c docs docs/pages build/docs
+
   docs/generate:
     desc: Generate the example configuration from the Python model
     cmds:
@@ -24,7 +42,7 @@ tasks:
           CMD: >-
             sh -eu -c 'uv run --locked --group docs python -m unittest discover -s docs -p "test_*.py" &&
             uv run --locked --group docs python docs/generate.py --check &&
-            uv run --locked --group docs sphinx-build -E -W --keep-going -b html docs build/docs'
+            uv run --locked --group docs sphinx-build -E -W --keep-going -b html -c docs docs/pages build/docs'
 
   ci/fmt:
     desc: Check Python formatting
