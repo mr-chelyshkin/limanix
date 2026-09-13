@@ -9,6 +9,22 @@ includes:
       PROJECT_ROOT: .
 
 tasks:
+  docs/serve:
+    desc: Serve documentation locally and rebuild on changes
+    vars:
+      DOCS_PORT: '{{.DOCS_PORT | default "8070"}}'
+    cmds:
+      - task: python:_uv/tool
+        vars:
+          CONTAINER_PORTS: '127.0.0.1:{{.DOCS_PORT}}:{{.DOCS_PORT}}'
+          CONTAINER_ENVS: PYTHONUNBUFFERED=1
+          CMD: >-
+            uv run --locked --group docs sphinx-autobuild
+            --host 0.0.0.0 --port {{.DOCS_PORT}}
+            --watch src/limanix --watch limanix.example.toml
+            --ignore '*/_generated/*'
+            -E -a -W --keep-going docs build/docs
+
   docs/generate:
     desc: Generate the example configuration from the Python model
     cmds:
