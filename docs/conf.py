@@ -13,7 +13,12 @@ author = "mr-chelyshkin"
 release = package_version("limanix")
 version = release
 
-extensions = ["myst_parser", "sphinx.ext.autodoc", "sphinxarg.ext"]
+extensions = [
+    "myst_parser",
+    "sphinx.ext.autodoc",
+    "sphinxarg.ext",
+    "sphinxcontrib.mermaid",
+]
 source_suffix = {".md": "markdown"}
 root_doc = "index"
 exclude_patterns = ["_generated"]
@@ -28,6 +33,23 @@ html_theme = "sphinx_book_theme"
 html_theme_options = {"navbar_persistent": []}
 html_title = "Limanix documentation"
 html_show_sourcelink = False
+html_static_path = ["_static"]
+html_css_files = ["mermaid.css"]
+
+mermaid_light_theme = "neutral"
+mermaid_height = "auto"
+mermaid_fullscreen = False
+mermaid_init_config = {
+    "startOnLoad": False,
+    "fontFamily": "var(--pst-font-family-base)",
+    "flowchart": {
+        "useMaxWidth": True,
+        "curve": "linear",
+        "htmlLabels": False,
+        "nodeSpacing": 24,
+        "rankSpacing": 32,
+    },
+}
 
 
 def generate_configuration_reference(app: Sphinx) -> None:

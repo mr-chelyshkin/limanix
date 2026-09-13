@@ -41,4 +41,5 @@ docs = [
     "sphinx-argparse>=0.6.1",
     "sphinx-autobuild>=2025.8.25",
     "sphinx-book-theme>=1.4.0",
+    "sphinxcontrib-mermaid>=2.1.1",
 ]

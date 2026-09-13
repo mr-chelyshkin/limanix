@@ -2,11 +2,14 @@
 
 ![Turtle illustration](../../.github/assets/readme-header.png)
 
-**Linux development sandboxes on your Mac.**
+**Build and test in Linux. Keep your project on your Mac.**
 
-Create your sandbox from the command line with Limanix.\
-Each sandbox is a virtual machine (VM) with its own tools, packages, and system
-settings.
+Limanix is a command-line tool for creating development sandboxes. Each sandbox
+is a Linux virtual machine (VM) with the tools and packages your project needs.
+
+Choose your tools with NixOS modules and describe the sandbox in a TOML config.
+Share your local project folder with the VM, then build, test, and run services
+inside it.
 
 ## Why use Limanix?
 
@@ -20,6 +23,19 @@ settings.
 
 Your `limanix.toml` describes the sandbox: VM resources, user, NixOS modules,
 shared folders, environment variables, and network settings.
+
+```{mermaid}
+:align: center
+:config: {"flowchart": {"padding": 8, "rankSpacing": 24}}
+
+flowchart LR
+    accTitle: How Limanix creates a development sandbox
+    accDescr: Limanix uses your TOML config and NixOS modules to create a Linux VM on your Mac. Your local project folder is mounted into the VM. You work with the same files.
+
+    config["TOML config<br/>+ NixOS modules"] --> cli["Limanix"]:::primary
+    cli -->|creates| vm["Linux VM<br/>NixOS"]
+    project["Project on your Mac"] ---|mounted folder| vm
+```
 
 | Part | Role |
 | --- | --- |

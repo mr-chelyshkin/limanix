@@ -1,0 +1,27 @@
+pre.mermaid {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+/* Mermaid switches its own palette when the documentation theme changes. */
+html[data-theme="dark"] pre.mermaid > svg {
+  filter: none;
+}
+
+pre.mermaid .cluster rect {
+  fill: var(--pst-color-background) !important;
+  stroke: var(--pst-color-border) !important;
+  rx: 8px;
+}
+
+pre.mermaid .node rect {
+  fill: var(--pst-color-surface) !important;
+  stroke: var(--pst-color-border) !important;
+  rx: 6px;
+}
+
+pre.mermaid .node.primary rect {
+  stroke: var(--pst-color-primary) !important;
+  stroke-width: 2px !important;
+}

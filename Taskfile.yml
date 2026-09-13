@@ -23,6 +23,7 @@ tasks:
             --host 0.0.0.0 --port {{.DOCS_PORT}}
             --watch src/limanix --watch limanix.example.toml
             --watch docs/conf.py --watch docs/generate.py
+            --watch docs/_static
             --ignore '*/_generated/*'
             -E -a -W --keep-going -c docs docs/pages build/docs
 
