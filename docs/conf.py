@@ -32,7 +32,7 @@ def generate_configuration_reference(app: Sphinx) -> None:
     """Refresh the model reference before Sphinx discovers source documents."""
     from generate import render_reference
 
-    destination = Path(app.srcdir) / "_generated" / "configuration.md"
+    destination = Path(app.confdir) / "_generated" / "configuration.md"
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(render_reference(), encoding="utf-8")
 

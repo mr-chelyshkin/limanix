@@ -7,7 +7,7 @@ from Python code:
 
 | Content | Source |
 | --- | --- |
-| Guides | Markdown files in `docs/` |
+| Guides | Markdown files in `docs/pages/` |
 | Configuration reference and default TOML | `src/limanix/config.py` |
 | CLI commands and arguments | `build_parser()` in `src/limanix/cli.py` |
 | Python API | Python signatures and docstrings |
