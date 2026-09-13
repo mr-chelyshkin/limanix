@@ -31,9 +31,17 @@ jobs:
   python:
     uses: mr-chelyshkin/actions/.github/workflows/pr-python.yml@v1
 
+  docs:
+    name: Documentation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        with: { command: ci/docs }
+
   gate:
     if: always()
-    needs: [label-check, actionlint, python]
+    needs: [label-check, actionlint, python, docs]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
