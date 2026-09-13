@@ -56,8 +56,8 @@ class Ports:
     tcp: list[int] = field(
         default_factory=lambda: [8080],
         doc=(
-            "Inbound TCP ports in the guest firewall. Services listen on a guest network "
-            "interface and are reached at <guest-ip>:<port> from the Mac."
+            "Inbound TCP ports in the guest firewall. Services listen on a guest "
+            "network interface and are reached at <guest-ip>:<port> from the Mac."
         ),
     )
     udp: list[int] = field(

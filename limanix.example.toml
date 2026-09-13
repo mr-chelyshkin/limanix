@@ -1,11 +1,5 @@
 # Default Limanix configuration for a development sandbox.
-# Regenerate this file with: task docs/generate
-# Override these values in your own configuration when needed.
-#
-# Usage:
-#   mkdir -p vm
-#   cp limanix.example.toml vm/my-vm.toml
-#   limanix create --config vm/my-vm.toml
+# Edit these values to match your environment.
 
 # Contract version, independent of the installed Limanix package version.
 schema_version = 1

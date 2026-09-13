@@ -52,7 +52,7 @@ tasks:
       - task: ci/build
       - task: python:package/check
         vars:
-          PACKAGE_COMMAND: limanix --version
+          PACKAGE_COMMAND: python -m unittest discover -s /workspace/tests
 
   ci/tag:
     desc: Check RELEASE_TAG against the package version

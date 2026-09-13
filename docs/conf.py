@@ -17,7 +17,6 @@ source_suffix = {".md": "markdown"}
 root_doc = "index"
 exclude_patterns = ["_generated"]
 nitpicky = True
-# The API page links this standard-library type without a remote inventory.
 nitpick_ignore = [("py:class", "argparse.ArgumentParser")]
 
 autodoc_member_order = "bysource"

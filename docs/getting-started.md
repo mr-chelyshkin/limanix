@@ -1,38 +1,42 @@
 # Getting started
 
-## Create your configuration
+## 1. Create a config
 
-Copy the default configuration from the repository root:
-
-```console
-mkdir -p vm
-cp limanix.example.toml vm/example-box.toml
-```
-
-Edit `vm/example-box.toml` to set your project paths, modules, and environment
-variables. The values in `limanix.example.toml` are the defaults; the
-[configuration reference](configuration.md) describes each field.
-
-The `vm/` directory is ignored by Git and holds your local configurations.
-
-## Define the development environment
-
-NixOS modules describe the guest system and its packages. The `nixos.modules`
-list accepts file paths and glob patterns relative to your configuration file.
-These modules have permission to configure the entire guest system.
-
-Mounts connect host directories to paths inside the guest. Each mount declares
-its source, target, and access mode. The `home` section defines where Limanix
-keeps the guest user's home directory on the host.
-
-The `env` table defines environment variables for guest login sessions and
-system and user services. The `network` section describes connectivity and the
-guest firewall ports used by your services.
-
-## Use the configuration
+Run in any folder:
 
 ```console
-limanix create --config vm/example-box.toml
+limanix first-config
 ```
 
-See [CLI](cli.md) for the command arguments.
+This writes `limanix.toml` with the **default values**.
+
+To use another folder, run:
+
+```console
+limanix first-config ~/projects/my-project
+```
+
+## 2. Edit your configuration
+
+Open `limanix.toml` and choose what your sandbox needs:
+
+| Setting         | What it controls                                               |
+|-----------------|----------------------------------------------------------------|
+| `nixos.modules` | Packages and system settings. Modules can change the whole VM. |
+| `mounts`        | Local folders (`source`) and their paths in the VM (`target`). |
+| `home.root`     | Local folder where Limanix keeps VM home directories.          |
+| `env`           | Variables for VM login sessions and system and user services.  |
+| `network`       | VM network and firewall ports for your services.               |
+
+> **Module paths start from the config folder.** 
+> The pattern `./modules/*.nix` selects NixOS files in a `modules/` folder next to `limanix.toml`.
+
+See the [configuration reference](configuration.md) for all fields and defaults.
+
+## 3. Create the sandbox
+
+```console
+limanix create --config limanix.toml
+```
+
+See the [CLI reference](cli.md) for command options.

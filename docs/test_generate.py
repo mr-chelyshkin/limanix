@@ -13,12 +13,13 @@ import generate
 from markdown_it import MarkdownIt
 
 from limanix.config import Config
+from limanix.config_template import render_config
 
 
 class GenerationTests(unittest.TestCase):
     def test_empty_defaults_preserve_entry_documentation(self) -> None:
         config = Config(mounts=[], env={})
-        self.assertEqual(tomllib.loads(generate.render_example(config)), asdict(config))
+        self.assertEqual(tomllib.loads(render_config(config)), asdict(config))
         reference = generate.render_reference(config)
         self.assertIn("## `mounts`", reference)
         self.assertIn("Mount destination inside the guest.", reference)
@@ -26,11 +27,9 @@ class GenerationTests(unittest.TestCase):
 
     def test_example_round_trip(self) -> None:
         config = Config()
-        self.assertEqual(tomllib.loads(generate.render_example(config)), asdict(config))
+        self.assertEqual(tomllib.loads(render_config(config)), asdict(config))
         changed = replace(config, resources=replace(config.resources, cpu=7))
-        self.assertEqual(
-            tomllib.loads(generate.render_example(changed)), asdict(changed)
-        )
+        self.assertEqual(tomllib.loads(render_config(changed)), asdict(changed))
         self.assertNotEqual(
             generate.render_reference(config), generate.render_reference(changed)
         )
@@ -39,7 +38,7 @@ class GenerationTests(unittest.TestCase):
         config = Config(
             env={"APP.NAME": '**bold** [link](https://example.org) `code` "\\\n\x7f'}
         )
-        self.assertEqual(tomllib.loads(generate.render_example(config)), asdict(config))
+        self.assertEqual(tomllib.loads(render_config(config)), asdict(config))
         html = (
             MarkdownIt("commonmark")
             .enable("table")
@@ -52,7 +51,7 @@ class GenerationTests(unittest.TestCase):
     def test_check_detects_stale_example_without_overwriting(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             example = Path(directory) / "limanix.example.toml"
-            example.write_text(generate.render_example())
+            example.write_text(render_config())
             with (
                 patch.object(generate, "EXAMPLE", example),
                 patch("sys.argv", ["generate.py", "--check"]),
