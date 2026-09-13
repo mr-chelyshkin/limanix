@@ -9,6 +9,7 @@ from sphinx.application import Sphinx
 sys.path.insert(0, str(Path(__file__).parent))
 
 project = "Limanix"
+author = "mr-chelyshkin"
 release = package_version("limanix")
 version = release
 
@@ -23,7 +24,8 @@ autodoc_member_order = "bysource"
 autodoc_typehints = "description"
 smartquotes = False
 
-html_theme = "furo"
+html_theme = "sphinx_book_theme"
+html_theme_options = {"navbar_persistent": []}
 html_title = "Limanix documentation"
 html_show_sourcelink = False
 
