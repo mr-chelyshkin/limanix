@@ -1,0 +1,43 @@
+[project]
+name = "limanix"
+version = "0.0.1"
+description = "Development sandboxes with Lima and NixOS."
+readme = "README.md"
+requires-python = ">=3.14"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = [
+    "tomlkit>=0.15.1",
+]
+
+[project.scripts]
+limanix = "limanix.cli:main"
+
+[build-system]
+requires = ["uv_build==0.12.9"]
+build-backend = "uv_build"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.14"
+files = ["src"]
+strict = true
+
+[dependency-groups]
+dev = [
+    "mypy>=2.3.1",
+    "ruff>=0.16.7",
+]
+docs = [
+    "furo>=2025.12.19",
+    "myst-parser>=5.1.0",
+    "sphinx>=9.1.0",
+    "sphinx-argparse>=0.6.1",
+]

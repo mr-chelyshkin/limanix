@@ -1,0 +1,52 @@
+name: PR validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  label-check:
+    name: Label check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mr-chelyshkin/actions/check-changelog-label@v1
+
+  actionlint:
+    name: Actionlint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker://rhysd/actionlint:1.7.12
+
+  python:
+    uses: mr-chelyshkin/actions/.github/workflows/pr-python.yml@v1
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        with: { command: ci/docs }
+
+  gate:
+    if: always()
+    needs: [label-check, actionlint, python, docs]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mr-chelyshkin/actions/check-job-results@v1
+        with:
+          results: ${{ toJSON(needs) }}
