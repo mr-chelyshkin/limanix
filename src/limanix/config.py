@@ -18,7 +18,7 @@ class Resources:
 class User:
     """Regular guest user and sudo access."""
 
-    name: str = field(default="dev", doc="Regular guest user name.")
+    name: str = field(default="dev", doc="Regular guest username.")
     home: str = field(default="/home/dev", doc="Guest user's home directory.")
     sudo: bool = field(default=True, doc="Passwordless sudo inside the guest.")
 

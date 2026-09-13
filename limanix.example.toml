@@ -8,7 +8,7 @@ name = "example-box"
 
 [user]
 # Regular guest user and sudo access.
-# Regular guest user name.
+# Regular guest username.
 name = "dev"
 # Guest user's home directory.
 home = "/home/dev"
