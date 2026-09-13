@@ -1,5 +1,7 @@
 # Limanix
 
+![Turtle illustration](../.github/assets/readme-header.png)
+
 Development sandboxes with Lima and NixOS. A TOML configuration describes the
 guest resources, user, NixOS modules, network, environment variables, and mounts.
 
