@@ -72,6 +72,7 @@ cli
 :maxdepth: 1
 :caption: Develop Limanix
 
+architecture
 api
 contributing
 ```

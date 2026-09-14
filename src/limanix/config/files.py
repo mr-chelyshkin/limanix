@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from limanix.config_template import render_config
+from limanix.config.template import render_config
 from limanix.filesystem import write_text_atomic
 
 

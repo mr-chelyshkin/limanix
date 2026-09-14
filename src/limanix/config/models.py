@@ -1,25 +1,42 @@
-"""Configuration fields and defaults for Limanix development sandboxes."""
+"""Configuration models, defaults, and field documentation."""
 
-from dataclasses import dataclass, field
-from typing import Literal
+from dataclasses import dataclass, field, fields, is_dataclass
+from typing import Any, Literal, cast
+
+from limanix.domain import (
+    Architecture,
+    ByteSize,
+    EnvName,
+    EnvValue,
+    GuestPath,
+    ModuleId,
+    Username,
+    VMName,
+)
 
 
 @dataclass(kw_only=True)
 class Resources:
     """Guest architecture and compute resources."""
 
-    arch: Literal["arm64", "amd64"] = field(default="arm64", doc="Guest architecture.")
-    disk: str = field(default="10GiB", doc="Guest system disk size in GiB.")
+    arch: Architecture = field(default=Architecture.ARM64, doc="Guest architecture.")
+    disk: ByteSize = field(
+        default=ByteSize.parse("10GiB"), doc="Guest system disk size in GiB."
+    )
     cpu: int = field(default=4, doc="Guest CPU count, a positive integer.")
-    mem: str = field(default="8GiB", doc="Guest memory size in GiB.")
+    mem: ByteSize = field(
+        default=ByteSize.parse("8GiB"), doc="Guest memory size in GiB."
+    )
 
 
 @dataclass(kw_only=True)
 class User:
     """Regular guest user and sudo access."""
 
-    name: str = field(default="dev", doc="Regular guest username.")
-    home: str = field(default="/home/dev", doc="Guest user's home directory.")
+    name: Username = field(default=Username("dev"), doc="Regular guest username.")
+    home: GuestPath = field(
+        default=GuestPath("/home/dev"), doc="Guest user's home directory."
+    )
     sudo: bool = field(default=True, doc="Passwordless sudo inside the guest.")
 
 
@@ -28,7 +45,7 @@ class Home:
     """Host storage for the guest user's home directory."""
 
     root: str = field(
-        default="/opt/limanix",
+        default="~/.limanix",
         doc=(
             "Host root for <root>/<name>-<id>. Limanix creates this directory "
             "on the Mac and mounts it at user.home with read-write access."
@@ -40,11 +57,11 @@ class Home:
 class NixOS:
     """Trusted modules that configure the guest system."""
 
-    modules: list[str] = field(
-        default_factory=lambda: ["./modules/*.nix"],
+    modules: list[ModuleId] = field(
+        default_factory=lambda: [ModuleId("git")],
         doc=(
-            "Paths and glob patterns for trusted NixOS modules, "
-            "relative to the configuration file."
+            "Bundled module names (git, rust, neovim), or third-party:NAME "
+            "for a module imported with limanix modules add."
         ),
     )
 
@@ -82,7 +99,7 @@ class Mount:
 
     mode: Literal["rw", "ro"] = field(default="rw", doc="Mount access: rw or ro.")
     source: str = field(doc="Host directory to mount inside the guest.")
-    target: str = field(doc="Mount destination inside the guest.")
+    target: GuestPath = field(doc="Mount destination inside the guest.")
 
 
 @dataclass(kw_only=True)
@@ -93,7 +110,7 @@ class Config:
         default=1,
         doc="Contract version, independent of the installed Limanix package version.",
     )
-    name: str = field(default="example-box", doc="Sandbox name.")
+    name: VMName = field(default=VMName("example-box"), doc="Sandbox name.")
     user: User = field(default_factory=User, doc="Regular guest user and sudo access.")
     resources: Resources = field(
         default_factory=Resources, doc="Guest architecture and compute resources."
@@ -107,18 +124,43 @@ class Config:
     network: Network = field(
         default_factory=Network, doc="Guest network and inbound firewall ports."
     )
-    env: dict[str, str] = field(
+    env: dict[EnvName, EnvValue] = field(
         default_factory=lambda: {
-            "APP_ENV": "development",
-            "APP_LOG_LEVEL": "debug",
+            EnvName("APP_ENV"): EnvValue("development"),
+            EnvName("APP_LOG_LEVEL"): EnvValue("debug"),
         },
         doc="Guest-wide environment for login sessions and system/user services.",
     )
     mounts: list[Mount] = field(
         default_factory=lambda: [
-            Mount(source="~/projects/my-project", target="/workspace"),
-            Mount(source="~/.ssh/limanix", target="/mnt/git-keys", mode="ro"),
-            Mount(source="~/.config/nvim", target="/home/dev/.config/nvim", mode="ro"),
+            Mount(source="~/projects/my-project", target=GuestPath("/workspace")),
+            Mount(
+                source="~/.ssh/limanix", target=GuestPath("/mnt/git-keys"), mode="ro"
+            ),
+            Mount(
+                source="~/.config/nvim",
+                target=GuestPath("/home/dev/.config/nvim"),
+                mode="ro",
+            ),
         ],
         doc="Host directories mounted inside the guest.",
     )
+
+
+def _encode(value: Any) -> Any:
+    if isinstance(value, ByteSize):
+        return value.to_gib()
+    if is_dataclass(value) and not isinstance(value, type):
+        return {item.name: _encode(getattr(value, item.name)) for item in fields(value)}
+    if isinstance(value, dict):
+        return {str(key): _encode(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_encode(item) for item in value]
+    if isinstance(value, str):
+        return str(value)
+    return value
+
+
+def config_to_dict(config: Config) -> dict[str, object]:
+    """Serialize typed configuration to its public TOML/JSON representation."""
+    return cast(dict[str, object], _encode(config))

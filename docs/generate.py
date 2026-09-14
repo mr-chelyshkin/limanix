@@ -2,13 +2,15 @@
 
 import argparse
 from dataclasses import MISSING, fields, is_dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, get_args, get_origin, get_type_hints
 
 import tomlkit
 
 from limanix.config import Config
-from limanix.config_template import render_config
+from limanix.config.template import render_config
+from limanix.domain import ByteSize
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 EXAMPLE = PROJECT_ROOT / "limanix.example.toml"
@@ -27,9 +29,23 @@ def _type_name(annotation: Any) -> str:
         return f"array[{_type_name(args[0])}]"
     if origin is dict:
         return f"table[{_type_name(args[0])}, {_type_name(args[1])}]"
+    if annotation is ByteSize:
+        return "string (GiB)"
+    if isinstance(annotation, type) and issubclass(annotation, Enum):
+        return " or ".join(
+            tomlkit.item(value.value).as_string() for value in annotation
+        )
+    if isinstance(annotation, type) and issubclass(annotation, str):
+        return "string"
     return {str: "string", int: "integer", bool: "boolean"}.get(
         annotation, annotation.__name__
     )
+
+
+def _toml(value: Any) -> str:
+    if isinstance(value, ByteSize):
+        value = value.to_gib()
+    return tomlkit.item(value).as_string()
 
 
 def _cell(value: str) -> str:
@@ -67,7 +83,7 @@ def _reference_table(model: Any, path: str = "") -> list[str]:
             continue
         lines.append(
             f"| {_code(item.name)} | {_code(_type_name(hints[item.name]))} "
-            f"| {_code(tomlkit.item(value).as_string())} | {_cell(item.doc or '')} |"
+            f"| {_code(_toml(value))} | {_cell(item.doc or '')} |"
         )
     lines.append("")
     for item in fields(model):
@@ -89,8 +105,7 @@ def _reference_table(model: Any, path: str = "") -> list[str]:
                 ]
             )
             lines.extend(
-                f"| {_code(key)} | {_code(tomlkit.item(val).as_string())} |"
-                for key, val in value.items()
+                f"| {_code(key)} | {_code(_toml(val))} |" for key, val in value.items()
             )
             lines.append("")
         elif _has_table_entries(hints[item.name]):
@@ -111,7 +126,7 @@ def _reference_table(model: Any, path: str = "") -> list[str]:
                 default = (
                     "Required"
                     if entry_field.default is MISSING
-                    else _code(tomlkit.item(entry_field.default).as_string())
+                    else _code(_toml(entry_field.default))
                 )
                 lines.append(
                     f"| {_code(entry_field.name)} "
@@ -128,8 +143,7 @@ def _reference_table(model: Any, path: str = "") -> list[str]:
                 lines.append(
                     "| "
                     + " | ".join(
-                        _code(tomlkit.item(getattr(entry, f.name)).as_string())
-                        for f in entry_fields
+                        _code(_toml(getattr(entry, f.name))) for f in entry_fields
                     )
                     + " |"
                 )

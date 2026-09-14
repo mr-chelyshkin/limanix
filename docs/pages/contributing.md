@@ -8,8 +8,8 @@ from Python code:
 | Content | Source |
 | --- | --- |
 | Guides | Markdown files in `docs/pages/` |
-| Configuration reference and default TOML | `src/limanix/config.py` |
-| CLI commands and arguments | `build_parser()` in `src/limanix/cli.py` |
+| Configuration reference and default TOML | `src/limanix/config/models.py` |
+| CLI commands and arguments | `build_parser()` in `src/limanix/cli/parser.py` |
 | Python API | Python signatures and docstrings |
 
 Sphinx builds the static site. MyST supplies Markdown support, `autodoc` reads
@@ -19,7 +19,7 @@ The `docs` dependency group in `pyproject.toml` contains the documentation tools
 
 ## Update the configuration contract
 
-Edit a field's type, default, or description in `src/limanix/config.py`, then
+Edit a field's type, default, or description in `src/limanix/config/models.py`, then
 regenerate the default configuration:
 
 ```console
@@ -57,3 +57,6 @@ task ci/docs
 Open `build/docs/index.html` to view the static site. Generated reference
 fragments in `docs/_generated/` and HTML output in `build/docs/` are build
 artifacts; the Markdown guides and Python sources are versioned.
+
+`task ci/typecheck` runs strict mypy checks for both `src` and `tests`. Test fixtures
+use the same domain value types as the application.

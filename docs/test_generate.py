@@ -5,21 +5,21 @@ import io
 import tempfile
 import tomllib
 import unittest
-from dataclasses import asdict, replace
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
 import generate
 from markdown_it import MarkdownIt
 
-from limanix.config import Config
-from limanix.config_template import render_config
+from limanix.config import Config, config_to_dict
+from limanix.config.template import render_config
 
 
 class GenerationTests(unittest.TestCase):
     def test_empty_defaults_preserve_entry_documentation(self) -> None:
         config = Config(mounts=[], env={})
-        self.assertEqual(tomllib.loads(render_config(config)), asdict(config))
+        self.assertEqual(tomllib.loads(render_config(config)), config_to_dict(config))
         reference = generate.render_reference(config)
         self.assertIn("## `mounts`", reference)
         self.assertIn("Mount destination inside the guest.", reference)
@@ -27,9 +27,9 @@ class GenerationTests(unittest.TestCase):
 
     def test_example_round_trip(self) -> None:
         config = Config()
-        self.assertEqual(tomllib.loads(render_config(config)), asdict(config))
+        self.assertEqual(tomllib.loads(render_config(config)), config_to_dict(config))
         changed = replace(config, resources=replace(config.resources, cpu=7))
-        self.assertEqual(tomllib.loads(render_config(changed)), asdict(changed))
+        self.assertEqual(tomllib.loads(render_config(changed)), config_to_dict(changed))
         self.assertNotEqual(
             generate.render_reference(config), generate.render_reference(changed)
         )
@@ -38,7 +38,7 @@ class GenerationTests(unittest.TestCase):
         config = Config(
             env={"APP.NAME": '**bold** [link](https://example.org) `code` "\\\n\x7f'}
         )
-        self.assertEqual(tomllib.loads(render_config(config)), asdict(config))
+        self.assertEqual(tomllib.loads(render_config(config)), config_to_dict(config))
         html = (
             MarkdownIt("commonmark")
             .enable("table")

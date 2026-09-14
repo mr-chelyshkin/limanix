@@ -20,6 +20,7 @@ extensions = [
     "sphinxcontrib.mermaid",
 ]
 source_suffix = {".md": "markdown"}
+myst_heading_anchors = 2
 root_doc = "index"
 exclude_patterns = ["_generated"]
 nitpicky = True

@@ -12,7 +12,6 @@ from unittest.mock import patch
 from limanix.filesystem import (
     FilesystemError,
     require_directory,
-    require_writable_directory,
     write_text_atomic,
 )
 
@@ -44,12 +43,6 @@ class DirectoryTests(unittest.TestCase):
         with self.assertRaises(FilesystemError):
             require_directory(Path("invalid\x00path"))
 
-    def test_writability_probe_leaves_no_files(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            self.assertEqual(require_writable_directory(root), root.resolve())
-            self.assertEqual(list(root.iterdir()), [])
-
     @unittest.skipIf(os.geteuid() == 0, "Root bypasses Unix permission checks")
     def test_inaccessible_directory_is_not_reported_as_missing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -65,20 +58,89 @@ class DirectoryTests(unittest.TestCase):
             finally:
                 parent.chmod(0o700)
 
-    @unittest.skipIf(os.geteuid() == 0, "Root bypasses Unix permission checks")
-    def test_directory_without_write_access_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            target = Path(directory) / "readonly"
-            target.mkdir(mode=0o500)
-            try:
-                with self.assertRaises(FilesystemError) as raised:
-                    require_writable_directory(target)
-                self.assertIn("Permission denied", raised.exception.reason)
-            finally:
-                target.chmod(0o700)
-
 
 class AtomicWriteTests(unittest.TestCase):
+    @unittest.skipIf(os.geteuid() == 0, "Root bypasses Unix permission checks")
+    def test_readonly_directory_refuses_write_and_preserves_existing_content(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "readonly"
+            root.mkdir()
+            destination = root / "config.toml"
+            destination.write_text("keep\n")
+            root.chmod(0o500)
+            try:
+                with self.assertRaises(FilesystemError):
+                    write_text_atomic(destination, "new\n")
+                self.assertEqual(destination.read_text(), "keep\n")
+                self.assertEqual(list(root.iterdir()), [destination])
+            finally:
+                root.chmod(0o700)
+
+    def test_explicit_private_mode_replaces_broader_existing_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "record.json"
+            destination.write_text("old\n")
+            destination.chmod(0o644)
+            write_text_atomic(destination, "new\n", mode=0o600)
+            self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o600)
+
+    def test_file_sync_replace_and_directory_sync_order(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            destination = root / "record.json"
+            operations: list[str] = []
+            real_fsync = os.fsync
+            real_replace = os.replace
+
+            def sync(descriptor: int) -> None:
+                kind = (
+                    "directory"
+                    if stat.S_ISDIR(os.fstat(descriptor).st_mode)
+                    else "file"
+                )
+                operations.append(f"sync {kind}")
+                real_fsync(descriptor)
+
+            def replace(source: Path, target: Path) -> None:
+                operations.append("replace")
+                real_replace(source, target)
+
+            with (
+                patch("limanix.filesystem.os.fsync", side_effect=sync),
+                patch("limanix.filesystem.os.replace", side_effect=replace),
+                patch(
+                    "limanix.filesystem.tempfile.NamedTemporaryFile",
+                    wraps=tempfile.NamedTemporaryFile,
+                ) as temporary,
+            ):
+                write_text_atomic(destination, "new\n")
+            self.assertEqual(operations, ["sync file", "replace", "sync directory"])
+            temporary.assert_called_once()
+            self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o600)
+            self.assertEqual(list(root.iterdir()), [destination])
+
+    def test_directory_sync_failure_reports_already_replaced_content(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            destination = root / "record.json"
+            destination.write_text("old\n")
+            real_fsync = os.fsync
+
+            def sync(descriptor: int) -> None:
+                if stat.S_ISDIR(os.fstat(descriptor).st_mode):
+                    raise OSError(errno.EIO, "directory sync failed")
+                real_fsync(descriptor)
+
+            with (
+                patch("limanix.filesystem.os.fsync", side_effect=sync),
+                self.assertRaisesRegex(FilesystemError, "directory sync failed"),
+            ):
+                write_text_atomic(destination, "new\n")
+            self.assertEqual(destination.read_text(), "new\n")
+            self.assertEqual(list(root.iterdir()), [destination])
+
     def test_invalid_file_path_has_a_filesystem_error(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -166,7 +228,7 @@ class AtomicWriteTests(unittest.TestCase):
                 stream.flush()
                 raise OSError(errno.ENOSPC, "No space left on device")
 
-            stream.write = partial_write
+            self.enterContext(patch.object(stream, "write", side_effect=partial_write))
             return stream
 
         with tempfile.TemporaryDirectory() as directory:

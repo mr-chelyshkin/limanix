@@ -40,24 +40,6 @@ def require_directory(path: Path) -> Path:
     return resolved
 
 
-def require_writable_directory(path: Path) -> Path:
-    """Check directory access by creating and removing a temporary file.
-
-    Return the resolved directory.
-    This checks access at the time of the call;
-    callers must still handle failures from later filesystem operations.
-    """
-    directory = require_directory(path)
-    try:
-        with tempfile.TemporaryFile(dir=directory, prefix=".limanix-check-"):
-            pass
-    except OSError as error:
-        raise FilesystemError(
-            directory, "write in directory", error.strerror or str(error)
-        ) from error
-    return directory
-
-
 def _existing_file_mode(path: Path) -> int | None:
     try:
         metadata = path.lstat()
@@ -77,26 +59,29 @@ def _existing_file_mode(path: Path) -> int | None:
         os.close(descriptor)
 
 
-def write_text_atomic(path: Path, text: str) -> Path:
+def write_text_atomic(path: Path, text: str, *, mode: int | None = None) -> Path:
     """Write UTF-8 text through a temporary file in the same directory.
 
     Require an existing writable parent directory.
     Reject destination symlinks and non-regular files;
     check existing file write access without truncation.
 
-    Preserve existing permission bits; new files are private (0600).
+    Preserve existing permission bits unless ``mode`` is supplied;
+    new files are private (0600) by default.
     Other inode metadata is not copied.
     Return the absolute destination path.
 
-    Write, flush, and sync the temporary file before replacing the destination.
+    Write, flush, and sync the temporary file before replacing the destination,
+    then sync the containing directory to persist the replacement.
     Failures before replacement leave the destination unchanged.
+    A directory sync failure is reported after the new content is installed.
     """
-    directory = require_writable_directory(path.parent)
+    directory = require_directory(path.parent)
     destination = directory / path.name
     temporary: Path | None = None
     failure: FilesystemError | None = None
     try:
-        mode = _existing_file_mode(destination)
+        existing_mode = _existing_file_mode(destination)
         with tempfile.NamedTemporaryFile(
             mode="w",
             encoding="utf-8",
@@ -106,14 +91,24 @@ def write_text_atomic(path: Path, text: str) -> Path:
             delete=False,
         ) as stream:
             temporary = Path(stream.name)
+            os.fchmod(
+                stream.fileno(),
+                mode
+                if mode is not None
+                else existing_mode
+                if existing_mode is not None
+                else 0o600,
+            )
             stream.write(text)
             stream.flush()
-            if mode is not None:
-                os.fchmod(stream.fileno(), mode)
             os.fsync(stream.fileno())
-        _existing_file_mode(destination)
         os.replace(temporary, destination)
         temporary = None
+        descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
     except FilesystemError as error:
         failure = error
         raise
