@@ -1,5 +1,5 @@
-// Package guestagent supplies embedded Lima guest binaries to native VM startup.
-package guestagent
+// Package bundle supplies embedded Lima guest binaries to native VM startup.
+package bundle
 
 import (
 	"bytes"
@@ -21,10 +21,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-//go:embed resources/*
+// Embed the directory so Go excludes dot-prefixed build and atomic-write leftovers.
+//
+//go:embed resources
 var resources embed.FS
-
-const maxBinarySize = 128 << 20
 
 // Cache materializes compressed guest agents in a host-only, content-addressed directory.
 type Cache struct {
@@ -125,12 +125,9 @@ func validateArchive(archive []byte, arch domain.Architecture) error {
 		return err
 	}
 	gzipReader.Multistream(false)
-	binary, readErr := io.ReadAll(io.LimitReader(gzipReader, maxBinarySize+1))
+	binary, readErr := io.ReadAll(gzipReader)
 	if err := errors.Join(readErr, gzipReader.Close()); err != nil {
 		return err
-	}
-	if len(binary) > maxBinarySize {
-		return errors.New("guest-agent executable exceeds the supported size")
 	}
 	executable, err := elf.NewFile(bytes.NewReader(binary))
 	if err != nil {

@@ -4,97 +4,12 @@ version: '3.53.1'
 includes:
   golang:
     taskfile: https://raw.githubusercontent.com/mr-chelyshkin/tasks/v0.0.3/taskfiles/golang/Taskfile.yml
-    internal: true
-    vars:
-      PROJECT_ROOT: .
-      GO_VERSION: 1.27.1
-      CONTAINER_ENVS: USER=limanix GOTOOLCHAIN=auto
+    internal: false
 
 vars:
-  HUGO_VERSION: '0.166.0'
+  hugo_version: '0.166.0'
 
 tasks:
-  tidy:
-    desc: Update Go module dependencies
-    cmds:
-      - task: golang:tidy
-
-  fmt:
-    desc: Format Go source files
-    cmds:
-      - task: golang:fmt
-
-  assets/generate:
-    desc: Build and verify embedded Linux guest agents in the Go container
-    cmds:
-      - task: _assets/container
-
-  assets/check:
-    desc: Verify embedded guest-agent inputs and archive contents
-    cmds:
-      - task: golang:_go/tool
-        vars:
-          CMD: go run -tags=osusergo ./cmd/agentgen --root . --check
-
-  _assets/container:
-    internal: true
-    run: once
-    cmds:
-      - task: golang:_go/tool
-        vars:
-          CMD: go run -tags=osusergo ./cmd/agentgen --root .
-
-  _assets/native:
-    internal: true
-    run: once
-    preconditions:
-      - sh: test "$(uname -s)" = Darwin
-        msg: Native release builds require macOS and the Xcode command-line tools.
-    cmds:
-      - env GOTOOLCHAIN=auto go run -tags=osusergo ./cmd/agentgen --root .
-
-  docs/generate:
-    desc: Generate the example and references from the Go models and CLI
-    deps: [_assets/container]
-    cmds:
-      - task: golang:_go/tool
-        vars:
-          CMD: go run -tags=osusergo ./cmd/docsgen
-
-  docs/serve:
-    desc: Serve Hugo Book documentation and rebuild on documentation changes
-    vars:
-      DOCS_PORT: '{{.DOCS_PORT | default "8070"}}'
-    cmds:
-      - task: docs/generate
-      - task: golang:_go/tool
-        vars:
-          CONTAINER_PORTS: '127.0.0.1:{{.DOCS_PORT}}:{{.DOCS_PORT}}'
-          CMD: >-
-            env CGO_ENABLED=1 go -C docs run -tags=extended
-            {{printf "github.com/gohugoio/hugo@v%s" .HUGO_VERSION | shellQuote}}
-            server --source . --destination ../build/docs
-            --cacheDir /tmp/go-cache/hugo
-            --bind 0.0.0.0 --port {{.DOCS_PORT | shellQuote}}
-            --baseURL http://127.0.0.1:{{.DOCS_PORT}}
-            --disableFastRender
-
-  ci/docs:
-    desc: Check the generated example and build Hugo Book documentation
-    deps: [_assets/container]
-    cmds:
-      - task: golang:_go/tool
-        vars:
-          CMD: go run -tags=osusergo ./cmd/docsgen --check
-      - task: golang:_go/tool
-        vars:
-          CMD: >-
-            env CGO_ENABLED=1 go -C docs run -tags=extended
-            {{printf "github.com/gohugoio/hugo@v%s" .HUGO_VERSION | shellQuote}}
-            --source . --destination ../build/docs
-            --cacheDir /tmp/go-cache/hugo --cleanDestinationDir
-            --panicOnWarning
-
   ci/fmt:
     desc: Check Go formatting
     cmds:
@@ -102,61 +17,16 @@ tasks:
 
   ci/lint:
     desc: Lint Go source and tests
-    deps: [_assets/container]
     cmds:
       - task: golang:golangci
 
   ci/test:
     desc: Run Go tests with the race detector
-    deps: [_assets/container]
     cmds:
+      - task: golang:_go/tool
+        vars:
+          CMD: go run ./cmd/bundle-guestagent --root .
       - task: golang:test
         vars:
           TEST_ARGS: -race -tags=osusergo ./...
-
-  ci/vuln:
-    desc: Scan Limanix and its embedded Linux guest agent for known vulnerabilities
-    deps: [_assets/container]
-    cmds:
-      - task: golang:govulncheck
-        vars:
-          VULN_ARGS: '{{.VULN_ARGS | default "./... github.com/lima-vm/lima/v2/cmd/lima-guestagent"}}'
-
-  ci/vuln/native:
-    desc: Scan native macOS and VZ source with the pinned vulnerability checker
-    deps: [_assets/native]
-    preconditions:
-      - sh: test "$(uname -s)" = Darwin && xcrun --find clang >/dev/null
-        msg: Native VZ vulnerability checks require macOS and the Xcode command-line tools.
-    cmds:
-      - env CGO_ENABLED=1 GOTOOLCHAIN=auto go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./...
-
-  ci/build:
-    desc: Build and sign native macOS amd64 and arm64 binaries
-    deps: [_assets/native]
-    vars:
-      release_tag: '{{.RELEASE_TAG | default ""}}'
-      lima_version:
-        sh: env GOTOOLCHAIN=auto go list -m -f '{{`{{.Version}}`}}' github.com/lima-vm/lima/v2
-      linker_flags: '-s -w -X github.com/lima-vm/lima/v2/pkg/version.Version={{.lima_version}}{{if .release_tag}} -X github.com/mr-chelyshkin/limanix/internal/buildinfo.Version={{.release_tag}}{{end}}'
-    preconditions:
-      - sh: test "$(uname -s)" = Darwin
-        msg: Native release builds require macOS and the Xcode command-line tools.
-      - sh: xcrun --find clang >/dev/null && command -v codesign >/dev/null
-        msg: Install the Xcode command-line tools before building native release binaries.
-    cmds:
-      - task: ci/vuln/native
-      - mkdir -p bin
-      - for: [amd64, arm64]
-        cmd: |
-          set -eu
-          env GOTOOLCHAIN=auto CGO_ENABLED=1 GOOS=darwin GOARCH={{.ITEM | shellQuote}} \
-            MACOSX_DEPLOYMENT_TARGET=13.0 CGO_CFLAGS=-mmacosx-version-min=13.0 CGO_LDFLAGS=-mmacosx-version-min=13.0 \
-            go build -trimpath -ldflags {{.linker_flags | shellQuote}} \
-            -o bin/limanix-darwin-{{.ITEM}} ./cmd/limanix
-          codesign --force --sign - --entitlements .github/assets/vz.entitlements bin/limanix-darwin-{{.ITEM}}
-          codesign --verify --strict bin/limanix-darwin-{{.ITEM}}
-          xcrun vtool -show-build bin/limanix-darwin-{{.ITEM}} | awk '
-            $1 == "minos" { found = 1; if ($2 !~ /^13([.]0)*$/) exit 1 }
-            END { if (!found) exit 1 }
-          '
+          CONTAINER_ENVS: USER=limanix

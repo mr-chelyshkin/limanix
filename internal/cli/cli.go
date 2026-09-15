@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mr-chelyshkin/limanix/internal/buildinfo"
+	"github.com/mr-chelyshkin/limanix/internal/bundle"
 	"github.com/mr-chelyshkin/limanix/internal/domain"
-	"github.com/mr-chelyshkin/limanix/internal/guestagent"
 	"github.com/mr-chelyshkin/limanix/internal/hostagent"
 	"github.com/mr-chelyshkin/limanix/internal/lima"
 	"github.com/mr-chelyshkin/limanix/internal/modules"
@@ -66,7 +66,7 @@ func withDefaultDependencies(streams IO, dependencies Dependencies) Dependencies
 			if err != nil {
 				return nil, err
 			}
-			agents := guestagent.New(filepath.Join(store.Root(), "runtime", "guestagents"))
+			agents := bundle.New(filepath.Join(store.Root(), "runtime", "guestagents"))
 			client := lima.NewClient(agents.Path)
 			client.Stdin, client.Stdout, client.Stderr = streams.In, streams.Out, streams.Err
 			manager := vm.New(store, client)

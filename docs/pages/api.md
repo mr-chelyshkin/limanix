@@ -57,7 +57,7 @@ documentation site.
 | `internal/modules` | Imports trusted module trees and resolves source paths under registry locks. |
 | `internal/lima` | Uses Lima's schema, store, driver, and lifecycle APIs directly; opens sessions with the system SSH client. |
 | `internal/hostagent` | Runs the hidden Lima host-agent subprocess, its PID lease and API socket, logging, and signal-driven shutdown. |
-| `internal/guestagent` | Embeds and verifies compressed Linux agents and materializes them in the host runtime cache. |
+| `internal/bundle` | Embeds and verifies compressed Linux agents and materializes them in the host runtime cache. |
 | `internal/nixos` | Embeds NixOS sources and bundled modules; copies selected modules into a generation. |
 | `internal/guest` | Applies guest configuration, starts development-user sessions, and discovers the guest address. |
 | `internal/filesystem` | Checks host paths and writes private, durable atomic files. |

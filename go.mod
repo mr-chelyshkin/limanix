@@ -1,8 +1,6 @@
 module github.com/mr-chelyshkin/limanix
 
-go 1.27.0
-
-toolchain go1.27.1
+go 1.27.1
 
 tool github.com/lima-vm/lima/v2/cmd/lima-guestagent
 

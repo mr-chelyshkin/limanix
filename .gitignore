@@ -15,9 +15,9 @@
 /docs/.hugo_build.lock
 
 # Lima guest agents generated from the pinned Go tool dependency
-/internal/guestagent/resources/*.gz
-/internal/guestagent/resources/manifest.json
-/internal/guestagent/resources/.agentgen-*/
+/internal/bundle/resources/*.gz
+/internal/bundle/resources/manifest.json
+/internal/bundle/resources/.bundle-guestagent-*/
 
 # OS files
 .DS_Store

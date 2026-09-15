@@ -54,11 +54,10 @@ Run the same tasks locally as in CI:
 task ci/fmt ci/lint ci/test ci/vuln
 ```
 
-Tasks that compile the application first generate or verify its embedded Linux
-guest agents. `task assets/generate` runs that step explicitly in the Go
-container; `task assets/check` verifies the manifest, archive hashes, and ELF
-architectures without rebuilding them. Generated archives and their manifest
-are ignored build artifacts.
+The `ci/test` task runs `cmd/bundle-guestagent` in the Go container before compiling tests.
+The generator verifies existing manifests, archive hashes, and ELF architectures,
+and rebuilds the assets when validation fails. Generated archives and their
+manifest are ignored build artifacts.
 
 On macOS, install the Xcode command-line tools and run:
 

@@ -11,16 +11,17 @@ lifecycle, host state, and Lima/NixOS integration into Go packages.
 ```text
 cmd/
 ├── limanix/             Application entry point
-├── agentgen/            Reproducible Linux guest-agent assets
+├── bundle-guestagent/   Guest-agent generator entry point
 └── docsgen/             CLI/configuration references and default TOML
 internal/
 ├── buildinfo/           Build version metadata
+├── bundle/              Embedded Linux agents and runtime cache
+│   └── generator/       Build-time guest-agent generation and verification
 ├── cli/                 Cobra commands and output
 ├── config/              TOML model, validation, and rendering
 ├── domain/              Shared validated values
 ├── filesystem/          Checked host paths and atomic writes
 ├── guest/               Guest configuration, sessions, and addresses
-├── guestagent/          Embedded Linux agents and runtime cache
 ├── hostagent/           Persistent Lima subprocess and API socket
 ├── lima/                Lima schema, validation, and host operations
 ├── managedhome/         Managed host home ownership
@@ -52,9 +53,12 @@ internal/
   subprocess. Sessions use the system SSH client and Lima's SSH configuration.
 - `hostagent` implements that hidden subprocess command. It owns its PID lease,
   API socket, synchronized JSON logging, and signal-driven shutdown.
-- `guestagent` supplies compressed Linux agents built from the pinned Lima
+- `bundle` supplies compressed Linux agents built from the pinned Lima
   dependency. It verifies their contents and caches the selected architecture
   under the host state directory before VM startup.
+- `bundle/generator` builds and verifies those assets before the application is
+  compiled. Its `Generate` function is called by `cmd/bundle-guestagent`; the
+  runtime `bundle` package does not depend on the generator.
 - `guest` applies guest configuration, opens development-user sessions, and
   discovers shared-network addresses.
 - `vm` orders those operations and decides when to persist records or remove
@@ -68,10 +72,13 @@ and network entitlements. QEMU and privileged `socket_vmnet` networking remain
 external prerequisites for foreign-architecture guests. NixOS files, bundled
 modules, and compressed Linux guest agents are embedded with `go:embed`.
 
-`cmd/agentgen` builds Linux `amd64` and `arm64` agents with CGO disabled and
+`internal/bundle/generator` builds Linux `amd64` and `arm64` agents with CGO disabled and
 deterministic gzip compression. Its manifest records the Lima dependency,
-compiler, module inputs, build flags, and archive hashes. The check mode verifies
-the manifest and ELF architectures before those assets enter a host build.
+compiler and linked modules read from each executable, build settings, command
+flags, and archive hashes. Before reuse, these are compared with the current
+agent dependency graph and selected compiler. The generator also checks ELF
+architecture and rejects binaries requiring a dynamic loader. Raw executables
+are built in a system temporary directory outside the embedded resources.
 
 See [Go packages](api.md) for the configuration and CLI surfaces.
 
