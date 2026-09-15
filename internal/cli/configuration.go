@@ -17,17 +17,21 @@ func firstConfigCommand() *cobra.Command {
 		Use:   "first-config [PATH]",
 		Short: "Write the default limanix.toml.",
 		Long:  "Write the default limanix.toml in an existing directory (default: current directory). Existing files are overwritten; configuration symlinks are rejected.",
+
 		Args: func(cmd *cobra.Command, args []string) error {
 			if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
 				return usageError(err)
 			}
 			return nil
 		},
+
 		RunE: func(cmd *cobra.Command, args []string) error {
 			directory := "."
+
 			if len(args) > 0 {
 				directory = args[0]
 			}
+
 			parent, err := filesystem.RequireDirectory(directory)
 			if err != nil {
 				return err
@@ -60,17 +64,21 @@ func configurationCommand(operation string, dependencies Dependencies) *cobra.Co
 			return nil
 		},
 	}
+
 	if operation == "create" {
 		command.Short = "Create a development sandbox from a TOML configuration."
 	} else {
 		command.Short = "Apply a configuration and restart an existing VM."
 	}
+
 	command.Flags().StringVar(&path, "config", "", "Path to the VM configuration file (required).")
+
 	command.RunE = func(cmd *cobra.Command, _ []string) error {
 		manager, err := dependencies.Manager()
 		if err != nil {
 			return err
 		}
+
 		var instance state.Instance
 		if operation == "create" {
 			instance, err = manager.Create(cmd.Context(), path)
@@ -80,6 +88,7 @@ func configurationCommand(operation string, dependencies Dependencies) *cobra.Co
 		if err != nil {
 			return err
 		}
+		
 		if operation == "create" {
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Created %s. Managed home: %s\n", instance.Identity.Name, instance.Identity.Home)
 		} else {

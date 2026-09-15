@@ -395,8 +395,7 @@ func TestSignalsCancelOperationsButKeepInteractiveSSHContext(t *testing.T) {
 		var diagnostics bytes.Buffer
 		command.Stderr = &diagnostics
 		err := command.Run()
-		var exit *exec.ExitError
-		if !errors.As(err, &exit) || exit.ExitCode() != expected {
+		if exit, ok := errors.AsType[*exec.ExitError](err); !ok || exit.ExitCode() != expected {
 			t.Fatalf("signal handling %s changed: %v %q", mode, err, diagnostics.String())
 		}
 		if mode == "shell-sigint" && diagnostics.Len() != 0 {

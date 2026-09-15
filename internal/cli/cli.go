@@ -1,4 +1,4 @@
-// Package cli defines commands shared by execution and generated documentation.
+// Package cli implements Limanix's command-line interface and generated command reference.
 package cli
 
 import (
@@ -59,17 +59,22 @@ func withDefaultDependencies(streams IO, dependencies Dependencies) Dependencies
 			if err != nil {
 				return nil, err
 			}
-			if err := lima.RequireNativeArchitecture(host); err != nil {
+
+			if err = lima.RequireNativeArchitecture(host); err != nil {
 				return nil, err
 			}
+
 			store, err := state.NewStore("")
 			if err != nil {
 				return nil, err
 			}
-			agents := bundle.New(filepath.Join(store.Root(), "runtime", "guestagents"))
-			client := lima.NewClient(agents.Path)
+
+			var (
+				agents  = bundle.New(filepath.Join(store.Root(), "runtime", "guestagents"))
+				client  = lima.NewClient(agents.Path)
+				manager = vm.New(store, client)
+			)
 			client.Stdin, client.Stdout, client.Stderr = streams.In, streams.Out, streams.Err
-			manager := vm.New(store, client)
 			manager.Warn = log.New(streams.Err, "limanix: warning: ", 0).Printf
 			return manager, nil
 		}
@@ -89,6 +94,7 @@ func withDefaultDependencies(streams IO, dependencies Dependencies) Dependencies
 // Command returns the complete CLI tree. It performs no host or VM operations.
 func Command(streams IO, dependencies Dependencies) *cobra.Command {
 	dependencies = withDefaultDependencies(streams, dependencies)
+
 	root := &cobra.Command{
 		Use:           "limanix",
 		Short:         "Development sandboxes with Lima and NixOS.",
@@ -96,6 +102,7 @@ func Command(streams IO, dependencies Dependencies) *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		Args:          exactArgs(0),
+
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
@@ -108,6 +115,7 @@ func Command(streams IO, dependencies Dependencies) *cobra.Command {
 	root.CompletionOptions.DisableDefaultCmd = true
 	root.PersistentFlags().Bool("debug", false, "Enable internal Lima diagnostic logging.")
 	_ = root.PersistentFlags().MarkHidden("debug")
+
 	root.PersistentPreRun = func(cmd *cobra.Command, _ []string) {
 		debug, _ := cmd.Flags().GetBool("debug")
 		if debug {

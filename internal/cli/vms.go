@@ -14,15 +14,18 @@ func listCommand(dependencies Dependencies) *cobra.Command {
 		Use:   "list",
 		Short: "List VMs managed by Limanix.",
 		Args:  exactArgs(0),
+
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			manager, err := dependencies.Manager()
 			if err != nil {
 				return err
 			}
+
 			entries, err := manager.FetchAll(cmd.Context())
 			if err != nil {
 				return err
 			}
+
 			if asJSON {
 				return writeJSON(cmd.OutOrStdout(), entries)
 			}
@@ -40,6 +43,7 @@ func powerCommand(operation string, dependencies Dependencies) *cobra.Command {
 	} else {
 		command.Short = "Stop a VM and preserve its disk and home."
 	}
+
 	command.RunE = func(cmd *cobra.Command, args []string) error {
 		name, err := domain.NewVMName(args[0])
 		if err != nil {
@@ -49,6 +53,7 @@ func powerCommand(operation string, dependencies Dependencies) *cobra.Command {
 		if err != nil {
 			return err
 		}
+
 		verb := "Started"
 		if operation == "start" {
 			err = manager.Start(cmd.Context(), name)
@@ -59,6 +64,7 @@ func powerCommand(operation string, dependencies Dependencies) *cobra.Command {
 		if err != nil {
 			return err
 		}
+
 		_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s %s.\n", verb, name)
 		return err
 	}
@@ -67,10 +73,12 @@ func powerCommand(operation string, dependencies Dependencies) *cobra.Command {
 
 func deleteCommand(dependencies Dependencies) *cobra.Command {
 	var force, removeHome bool
+
 	command := &cobra.Command{
 		Use:   "delete NAME",
 		Short: "Delete a VM; preserve its managed host home by default.",
 		Args:  exactArgs(1),
+
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, err := domain.NewVMName(args[0])
 			if err != nil {
@@ -84,7 +92,8 @@ func deleteCommand(dependencies Dependencies) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Deleted %s.\n", name); err != nil {
+
+			if _, err = fmt.Fprintf(cmd.OutOrStdout(), "Deleted %s.\n", name); err != nil {
 				return err
 			}
 			if !removeHome {
@@ -93,6 +102,7 @@ func deleteCommand(dependencies Dependencies) *cobra.Command {
 			return err
 		},
 	}
+
 	command.Flags().BoolVar(&force, "force", false, "Force Lima to stop and delete the VM.")
 	command.Flags().BoolVar(&removeHome, "remove-home", false, "Also remove this VM's managed host home and its contents.")
 	return command
@@ -103,24 +113,29 @@ func shellCommand(dependencies Dependencies) *cobra.Command {
 		Use:                "shell NAME [-- COMMAND ...]",
 		Short:              "Connect as the configured development user.",
 		DisableFlagParsing: true,
+
 		Args: func(cmd *cobra.Command, args []string) error {
 			if err := cobra.MinimumNArgs(1)(cmd, args); err != nil {
 				return usageError(err)
 			}
 			return nil
 		},
+
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] == "--help" || args[0] == "-h" {
 				return cmd.Help()
 			}
+
 			name, err := domain.NewVMName(args[0])
 			if err != nil {
 				return err
 			}
+
 			command := args[1:]
 			if len(command) > 0 && command[0] == "--" {
 				command = command[1:]
 			}
+
 			manager, err := dependencies.Manager()
 			if err != nil {
 				return err
