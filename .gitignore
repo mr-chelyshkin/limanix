@@ -7,7 +7,7 @@
 /build/
 /bin/
 
-# Generated documentation and Hugo cache
+# Documentation and cache
 /limanix.example.toml
 /docs/_generated/
 /docs/resources/
@@ -15,7 +15,7 @@
 /.hugo_build.lock
 /docs/.hugo_build.lock
 
-# Lima guest agents generated from the pinned Go tool dependency
+# Lima guestagents
 /internal/bundle/resources/*.gz
 /internal/bundle/resources/manifest.json
 /internal/bundle/resources/.bundle-guestagent-*/
