@@ -106,7 +106,6 @@ tasks:
           TARGET_ARCH: '{{.ITEM}}'
           LINKER_FLAGS: '{{.linker_flags}}'
 
-
   docs/preview:
     desc: Preview the documentation site
     vars:
