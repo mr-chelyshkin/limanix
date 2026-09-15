@@ -613,7 +613,7 @@ func TestRegistryReadersWaitWritersCancelAndTimeout(t *testing.T) {
 	}
 }
 
-// The test binary doubles as a helper so locks are validated across real processes.
+// The test binary doubles as a helper for validating locks across real processes.
 func TestLockHelperProcess(t *testing.T) {
 	if os.Getenv("LIMANIX_STATE_HELPER") != "1" {
 		return

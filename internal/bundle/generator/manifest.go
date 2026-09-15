@@ -43,7 +43,7 @@ func readManifest(directory string) (manifest, error) {
 	if err != nil {
 		return saved, fmt.Errorf("read manifest: %w", err)
 	}
-	// Check the schema first so a previous format produces an actionable reason.
+	// Check the schema first to report unsupported formats explicitly.
 	var header struct {
 		SchemaVersion int `json:"schema_version"`
 	}

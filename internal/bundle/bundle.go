@@ -21,7 +21,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Embed the directory so Go excludes dot-prefixed build and atomic-write leftovers.
+// Embedding the directory excludes dot-prefixed build and atomic-write leftovers.
 //
 //go:embed resources
 var resources embed.FS

@@ -27,7 +27,7 @@ type Guest struct{ client Client }
 func New(client Client) *Guest { return &Guest{client: client} }
 
 // userCommand changes to HOME and execs literal positional arguments.
-// sudo --login reinterprets argument quoting, so a fixed explicit Bash script is used.
+// A fixed explicit Bash script avoids the argument-quoting changes made by sudo --login.
 func userCommand(user domain.Username, command []string) []string {
 	bash := "/run/current-system/sw/bin/bash"
 	args := []string{"sudo", "--set-home", "--user", string(user), "--", bash}

@@ -12,7 +12,7 @@ import (
 )
 
 // Create prepares a generation and home before invoking Lima. Once backend
-// creation starts, failures retain ownership so update/delete can recover it.
+// creation starts, failures retain ownership for recovery through update/delete.
 func (m *Manager) Create(ctx context.Context, path string) (result state.Instance, err error) {
 	cfg, err := config.Load(path)
 	if err != nil {

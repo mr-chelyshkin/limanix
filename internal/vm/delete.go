@@ -11,7 +11,7 @@ import (
 
 // Delete controls Lima force and owned-home removal independently. An intact
 // identity suffices even when instance.json is damaged. Home preservation is
-// recorded before state removal, so an archival failure can be retried safely.
+// recorded before state removal. An archival failure can be retried safely.
 func (m *Manager) Delete(ctx context.Context, name domain.VMName, force, removeHome bool) (home string, err error) {
 	lock, err := m.store.InstanceLock(ctx, name)
 	if err != nil {

@@ -91,7 +91,7 @@ limanix update --config limanix.toml
 ```
 
 Removing the registry entry alone does not change installed packages or existing
-VM generations. An update resolves the selected identifiers again, so import
+VM generations. An update resolves the selected identifiers again. Import
 the replacement before updating a configuration that still selects it.
 
 ## Mount editor configuration and Git keys
@@ -122,7 +122,8 @@ For an existing VM, apply the new mounts with `limanix update --config limanix.t
 
 `[env]` values are available to guest login sessions and system and user services.
 They remain literal strings; `$HOME` does not expand during configuration loading.
-An update reboots the guest so sessions and services receive the new values.
+An update reboots the guest. Sessions and services receive the new values after
+the reboot.
 
 For example:
 
