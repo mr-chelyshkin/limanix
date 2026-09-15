@@ -7,7 +7,8 @@
 /build/
 /bin/
 
-# Generated documentation sources
+# Generated documentation and Hugo cache
+/limanix.example.toml
 /docs/_generated/
 /docs/resources/
 /docs/public/

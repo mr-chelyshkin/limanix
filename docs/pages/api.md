@@ -42,10 +42,10 @@ state store or querying Lima. `Execute` dispatches commands, connects explicit
 input/output streams, and returns an OS exit status. Its manager and registry
 interfaces allow tests to exercise CLI behavior without a VM.
 
-`cmd/docsgen` uses that command tree and the configuration renderer to generate
-the [CLI reference](cli.md), [configuration reference](configuration.md), default
-TOML, and version metadata. Hugo includes those generated files in the static
-documentation site.
+`cmd/docsgen` calls `internal/docs/generator.Generate`, which uses that command
+tree and the configuration renderer to write the [CLI reference](cli.md),
+[configuration reference](configuration.md), default TOML, and version metadata.
+Hugo includes those generated files in the static documentation site.
 
 ## Runtime packages
 

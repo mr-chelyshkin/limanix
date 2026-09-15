@@ -6,7 +6,7 @@ weight = 30
 # CLI
 
 The command reference is generated from the same Cobra command tree and flags
-as `limanix --help`. Run `task docs/generate` after changing command definitions.
+as `limanix --help`. Run `task ci/docs` after changing command definitions.
 
 Use `shell NAME` for an interactive session, or `shell NAME -- COMMAND ...` for
 a guest command. Arguments after the VM name are passed to the guest command;

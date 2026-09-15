@@ -12,13 +12,15 @@ lifecycle, host state, and Lima/NixOS integration into Go packages.
 cmd/
 ├── limanix/             Application entry point
 ├── bundle-guestagent/   Guest-agent generator entry point
-└── docsgen/             CLI/configuration references and default TOML
+└── docsgen/             Documentation generator entry point
 internal/
 ├── buildinfo/           Build version metadata
 ├── bundle/              Embedded Linux agents and runtime cache
 │   └── generator/       Build-time guest-agent generation and verification
 ├── cli/                 Cobra commands and output
 ├── config/              TOML model, validation, and rendering
+├── docs/
+│   └── generator/       CLI/configuration references, example, and version metadata
 ├── domain/              Shared validated values
 ├── filesystem/          Checked host paths and atomic writes
 ├── guest/               Guest configuration, sessions, and addresses
@@ -162,8 +164,8 @@ Removing the home also clears a matching archive from a previous attempt.
 
 The Go tests exercise configuration/domain validation, embedded NixOS sources,
 Lima translation and typed records, host ownership, locking, CLI output, and
-lifecycle ordering with injected backends. The tracked example and generated
-references are checked by the documentation task.
+lifecycle ordering with injected backends. The documentation task generates the
+default example and references from Go sources, then builds the Hugo site.
 
 The project's workflows run containerized source checks on Ubuntu through
 `mr-chelyshkin/actions/invoke-taskfile@v1` and run `ci/build` directly on

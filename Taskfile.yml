@@ -66,6 +66,21 @@ tasks:
           TEST_ARGS: -race -tags=osusergo ./...
           CONTAINER_ENVS: USER=limanix
 
+  ci/docs:
+    desc: Build the documentation site
+    cmds:
+      - task: golang:_go/tool
+        vars:
+          CMD: go run -tags=osusergo ./cmd/docsgen --root .
+          CONTAINER_ENVS: USER=limanix
+      - task: golang:_go/tool
+        vars:
+          CMD: >-
+            env CGO_ENABLED=1 go -C docs run -tags=extended
+            github.com/gohugoio/hugo@v{{.hugo_version}}
+            --destination ../build/docs --cacheDir /tmp/go-cache/hugo
+            --cleanDestinationDir --panicOnWarning
+
   ci/build:
     desc: Build and sign native macOS amd64 and arm64 binaries
     vars:
@@ -90,3 +105,25 @@ tasks:
         vars:
           TARGET_ARCH: '{{.ITEM}}'
           LINKER_FLAGS: '{{.linker_flags}}'
+
+
+  docs/preview:
+    desc: Preview the documentation site
+    vars:
+      docs_port: '{{.DOCS_PORT | default "8060"}}'
+    cmds:
+      - task: golang:_go/tool
+        vars:
+          CMD: go run -tags=osusergo ./cmd/docsgen --root .
+          CONTAINER_ENVS: USER=limanix
+      - task: golang:_go/tool
+        vars:
+          CMD: >-
+            env CGO_ENABLED=1 go -C docs run -tags=extended
+            github.com/gohugoio/hugo@v{{.hugo_version}} server
+            --renderToMemory --cacheDir /tmp/go-cache/hugo
+            --bind 0.0.0.0 --port {{.docs_port | shellQuote}}
+            --baseURL {{printf "http://127.0.0.1:%s/" .docs_port | shellQuote}}
+            --disableFastRender
+          CONTAINER_PORTS: '127.0.0.1:{{.docs_port}}:{{.docs_port}}'
+          CONTAINER_ENVS: TINI_KILL_PROCESS_GROUP=1
