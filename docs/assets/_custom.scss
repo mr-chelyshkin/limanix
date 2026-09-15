@@ -1,0 +1,49 @@
+.book-version {
+  color: var(--body-font-color);
+  font-size: var(--font-size-smaller);
+  opacity: 0.7;
+}
+
+.markdown pre.mermaid {
+  background: transparent;
+  border: 0;
+  padding: 0;
+
+  svg {
+    display: block;
+    margin-inline: auto;
+  }
+
+  .cluster rect {
+    fill: var(--body-background) !important;
+    stroke: var(--gray-200) !important;
+    rx: 8px;
+  }
+
+  .node rect {
+    fill: var(--gray-100) !important;
+    stroke: var(--gray-500) !important;
+    rx: 6px;
+  }
+
+  .node.primary rect {
+    stroke: var(--color-link) !important;
+    stroke-width: 2px !important;
+  }
+
+  .nodeLabel, .edgeLabel text {
+    fill: var(--body-font-color) !important;
+  }
+
+  .edgeLabel rect {
+    fill: var(--body-background) !important;
+  }
+
+  .flowchart-link {
+    stroke: var(--body-font-color) !important;
+  }
+
+  marker path {
+    fill: var(--body-font-color) !important;
+  }
+}

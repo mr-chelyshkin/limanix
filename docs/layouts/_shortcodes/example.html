@@ -1,0 +1,7 @@
+{{- $name := .Get 0 -}}
+{{- with resources.Get (printf "examples/%s" $name) -}}
+  <p><a href="{{ .RelPermalink }}" download>{{ $name }}</a></p>
+  {{- highlight .Content ($.Get 1) "" -}}
+{{- else -}}
+  {{- errorf "The tracked example is missing: %s (%s)" $name .Position -}}
+{{- end -}}

@@ -6,8 +6,8 @@ schema_version = 1
 # Sandbox name.
 name = "example-box"
 
-[user]
 # Regular guest user and sudo access.
+[user]
 # Regular guest username.
 name = "dev"
 # Guest user's home directory.
@@ -15,8 +15,8 @@ home = "/home/dev"
 # Passwordless sudo inside the guest.
 sudo = true
 
-[resources]
 # Guest architecture and compute resources.
+[resources]
 # Guest architecture.
 arch = "arm64"
 # Guest system disk size in GiB.
@@ -26,37 +26,38 @@ cpu = 4
 # Guest memory size in GiB.
 mem = "8GiB"
 
-[home]
 # Host storage for the guest user's home directory.
+[home]
 # Host root for <root>/<name>-<id>. Limanix creates this directory on the Mac and mounts
 # it at user.home with read-write access.
-root = "/opt/limanix"
+root = "~/.limanix"
 
-[nixos]
 # Trusted modules that configure the guest system.
-# Paths and glob patterns for trusted NixOS modules, relative to the configuration file.
-modules = ["./modules/*.nix"]
+[nixos]
+# Bundled module names (git, rust, neovim), or third-party:NAME for a module imported
+# with limanix modules add.
+modules = ["git"]
 
-[network]
 # Guest network and inbound firewall ports.
+[network]
 # Shared/NAT network. The Mac reaches the guest by its own IP address.
 mode = "shared"
 
-[network.ports]
 # Inbound guest firewall ports.
+[network.ports]
 # Inbound TCP ports in the guest firewall. Services listen on a guest network interface
 # and are reached at <guest-ip>:<port> from the Mac.
 tcp = [8080]
 # Inbound UDP ports in the guest firewall.
 udp = []
 
-[env]
 # Guest-wide environment for login sessions and system/user services.
+[env]
 APP_ENV = "development"
 APP_LOG_LEVEL = "debug"
 
-[[mounts]]
 # Host directories mounted inside the guest.
+[[mounts]]
 # Mount access: rw or ro.
 mode = "rw"
 # Host directory to mount inside the guest.
@@ -64,8 +65,8 @@ source = "~/projects/my-project"
 # Mount destination inside the guest.
 target = "/workspace"
 
-[[mounts]]
 # Host directories mounted inside the guest.
+[[mounts]]
 # Mount access: rw or ro.
 mode = "ro"
 # Host directory to mount inside the guest.
@@ -73,8 +74,8 @@ source = "~/.ssh/limanix"
 # Mount destination inside the guest.
 target = "/mnt/git-keys"
 
-[[mounts]]
 # Host directories mounted inside the guest.
+[[mounts]]
 # Mount access: rw or ro.
 mode = "ro"
 # Host directory to mount inside the guest.

@@ -1,4 +1,4 @@
-name: Release Python package
+name: Release Go binaries
 
 on:
   push:
@@ -12,36 +12,83 @@ permissions:
   contents: read
 
 jobs:
-  package:
-    uses: mr-chelyshkin/actions/.github/workflows/tag-python-package.yml@v1
-
-  publish:
-    name: Publish to PyPI
-    needs: package
+  verify:
+    name: Verify release tag
     runs-on: ubuntu-24.04
-    environment:
-      name: pypi
-      url: https://pypi.org/p/limanix
-    permissions:
-      id-token: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v6
         with:
-          name: ${{ needs.package.outputs.artifact-name }}
-          path: dist
-      - uses: pypa/gh-action-pypi-publish@release/v1
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: mr-chelyshkin/actions/check-tag-branch@v1
+        with:
+          branch: main
+
+  checks:
+    name: Check Go release
+    needs: verify
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check Go formatting
+        uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        with: { command: ci/fmt }
+      - name: Lint Go
+        uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        with: { command: ci/lint }
+      - name: Check Go vulnerabilities
+        uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        with: { command: ci/vuln }
+
+  binary:
+    name: Build release binaries
+    needs: checks
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Install Task
+        shell: bash
+        run: |
+          set -euo pipefail
+          GOBIN="$RUNNER_TEMP/task-bin" go install github.com/go-task/task/v3/cmd/task@v3.53.1
+          echo "$RUNNER_TEMP/task-bin" >> "$GITHUB_PATH"
+      - name: Build and sign release binaries
+        shell: bash
+        env:
+          TASK_X_REMOTE_TASKFILES: '1'
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: task --yes ci/build
+      - name: Upload release binaries
+        uses: actions/upload-artifact@v7
+        with:
+          name: limanix-bin-${{ github.sha }}
+          path: bin/*
+          if-no-files-found: error
+          retention-days: 7
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        with: { command: ci/docs }
 
   release:
     name: Create GitHub release
-    needs: [package, publish]
+    needs: [binary, docs]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: ${{ needs.package.outputs.artifact-name }}
-          path: dist
+          name: limanix-bin-${{ github.sha }}
+          path: bin
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
@@ -50,6 +97,4 @@ jobs:
           prerelease: false
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: |
-            dist/*.whl
-            dist/*.tar.gz
+          files: bin/*

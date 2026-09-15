@@ -1,0 +1,12 @@
+{
+  "theme": "neutral",
+  "fontFamily": "inherit",
+  "flowchart": {
+    "useMaxWidth": true,
+    "curve": "linear",
+    "htmlLabels": false,
+    "padding": 8,
+    "nodeSpacing": 24,
+    "rankSpacing": 24
+  }
+}

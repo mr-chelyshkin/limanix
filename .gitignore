@@ -1,22 +1,23 @@
 # Local environment and private VM configurations
-/.venv/
 /vm/
 .env
 .env.*
 
-# Python and tooling caches
-__pycache__/
-*.py[cod]
-.ruff_cache/
-.mypy_cache/
-
-# Distribution artifacts
+# Build artifacts
 /build/
-/dist/
-*.egg-info/
+/bin/
 
 # Generated documentation sources
 /docs/_generated/
+/docs/resources/
+/docs/public/
+/.hugo_build.lock
+/docs/.hugo_build.lock
+
+# Lima guest agents generated from the pinned Go tool dependency
+/internal/guestagent/resources/*.gz
+/internal/guestagent/resources/manifest.json
+/internal/guestagent/resources/.agentgen-*/
 
 # OS files
 .DS_Store

@@ -21,15 +21,72 @@ jobs:
       - uses: actions/checkout@v6
       - uses: mr-chelyshkin/actions/check-changelog-label@v1
 
-  actionlint:
-    name: Actionlint
+  fmt:
+    name: Go format
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
-      - uses: docker://rhysd/actionlint:1.7.12
+      - name: Check Go formatting
+        uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        with: { command: ci/fmt }
 
-  python:
-    uses: mr-chelyshkin/actions/.github/workflows/pr-python.yml@v1
+  lint:
+    name: Go lint
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Lint Go
+        uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        with: { command: ci/lint }
+
+  test:
+    name: Go tests
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run Go tests
+        uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        with: { command: ci/test }
+
+  build:
+    name: Native macOS build
+    runs-on: macos-26
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Install Task
+        shell: bash
+        run: |
+          set -euo pipefail
+          GOBIN="$RUNNER_TEMP/task-bin" go install github.com/go-task/task/v3/cmd/task@v3.53.1
+          echo "$RUNNER_TEMP/task-bin" >> "$GITHUB_PATH"
+      - name: Build and sign macOS binaries
+        shell: bash
+        env:
+          TASK_X_REMOTE_TASKFILES: '1'
+        run: task --yes ci/build
+
+  vuln:
+    name: Go vulnerabilities
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check Go vulnerabilities
+        uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        with: { command: ci/vuln }
 
   docs:
     name: Documentation
@@ -41,7 +98,7 @@ jobs:
 
   gate:
     if: always()
-    needs: [label-check, actionlint, python, docs]
+    needs: [label-check, fmt, lint, test, build, vuln, docs]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
