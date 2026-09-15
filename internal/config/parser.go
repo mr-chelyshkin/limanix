@@ -36,26 +36,31 @@ func Parse(data []byte) (Config, error) {
 	if !utf8.Valid(data) {
 		return Config{}, fieldError("config", "expected UTF-8 text")
 	}
+
 	var supplied map[string]any
 	if err := toml.Unmarshal(data, &supplied); err != nil {
 		return Config{}, decodeError(err)
 	}
+
 	if err := checkShape(supplied, reflect.TypeFor[Config](), ""); err != nil {
 		return Config{}, err
 	}
 	result := Default()
-	// Explicit tables replace default collections, including empty [env].
+
 	if _, exists := supplied["env"]; exists {
 		result.Env = map[domain.EnvName]domain.EnvValue{}
 	}
+
 	decoder := toml.NewDecoder(bytes.NewReader(data)).DisallowUnknownFields()
 	if err := decoder.Decode(&result); err != nil {
 		return Config{}, decodeError(err)
 	}
+
 	applyEntryDefaults(reflect.ValueOf(&result).Elem(), supplied)
 	if err := Validate(result); err != nil {
 		return Config{}, err
 	}
+
 	result.User.Home, _ = domain.NewGuestPath(string(result.User.Home))
 	for index := range result.Mounts {
 		result.Mounts[index].Target, _ = domain.NewGuestPath(string(result.Mounts[index].Target))
@@ -63,13 +68,13 @@ func Parse(data []byte) (Config, error) {
 	return result, nil
 }
 
-// Collection entries are newly allocated by the decoder; their optional fields
-// receive the defaults declared in the model rather than top-level defaults.
 func applyEntryDefaults(model reflect.Value, supplied map[string]any) {
 	for index := range model.NumField() {
-		item := model.Type().Field(index)
-		value := model.Field(index)
-		entry, exists := supplied[item.Tag.Get("toml")]
+		var (
+			item          = model.Type().Field(index)
+			value         = model.Field(index)
+			entry, exists = supplied[item.Tag.Get("toml")]
+		)
 		if !exists {
 			if declared, ok := item.Tag.Lookup("default"); ok {
 				value.SetString(declared)
@@ -88,8 +93,7 @@ func applyEntryDefaults(model reflect.Value, supplied map[string]any) {
 }
 
 func decodeError(err error) error {
-	var decode *toml.DecodeError
-	if errors.As(err, &decode) {
+	if decode, ok := errors.AsType[*toml.DecodeError](err); ok {
 		line, column := decode.Position()
 		return fieldError("config", fmt.Sprintf("invalid TOML at line %d, column %d", line, column))
 	}
@@ -103,8 +107,6 @@ func joinField(parent, name string) string {
 	return parent + "." + name
 }
 
-// checkShape uses model tags and Go types to provide precise diagnostics before
-// the strict decoder runs. Decoder source excerpts are deliberately not returned.
 func checkShape(value any, model reflect.Type, field string) error {
 	if model == byteSizeType {
 		text, ok := value.(string)
@@ -116,12 +118,14 @@ func checkShape(value any, model reflect.Type, field string) error {
 		}
 		return nil
 	}
+
 	switch model.Kind() {
 	case reflect.Struct:
 		table, ok := value.(map[string]any)
 		if !ok {
 			return fieldError(field, "expected a table")
 		}
+
 		fields := map[string]reflect.StructField{}
 		for index := range model.NumField() {
 			item := model.Field(index)
@@ -133,9 +137,11 @@ func checkShape(value any, model reflect.Type, field string) error {
 			}
 		}
 		for index := range model.NumField() {
-			item := model.Field(index)
-			name := item.Tag.Get("toml")
-			entry, exists := table[name]
+			var (
+				item          = model.Field(index)
+				name          = item.Tag.Get("toml")
+				entry, exists = table[name]
+			)
 			if !exists {
 				if item.Tag.Get("required") == "true" {
 					return fieldError(joinField(field, name), "required field is missing")
@@ -151,6 +157,7 @@ func checkShape(value any, model reflect.Type, field string) error {
 		if !ok {
 			return fieldError(field, "expected an array")
 		}
+
 		for index, entry := range entries {
 			if err := checkShape(entry, model.Elem(), fmt.Sprintf("%s[%d]", field, index)); err != nil {
 				return err
@@ -161,6 +168,7 @@ func checkShape(value any, model reflect.Type, field string) error {
 		if !ok {
 			return fieldError(field, "expected a table")
 		}
+
 		for _, key := range sortedKeys(table) {
 			if _, err := domain.NewEnvName(key); err != nil {
 				return fieldError(field, err.Error())
@@ -193,6 +201,7 @@ func checkShape(value any, model reflect.Type, field string) error {
 
 func sortedKeys[V any](table map[string]V) []string {
 	keys := make([]string, 0, len(table))
+
 	for key := range table {
 		keys = append(keys, key)
 	}
@@ -202,6 +211,7 @@ func sortedKeys[V any](table map[string]V) []string {
 
 func validateString(value reflect.Value) error {
 	text := value.String()
+
 	switch value.Interface().(type) {
 	case domain.VMName:
 		_, err := domain.NewVMName(text)
@@ -237,11 +247,14 @@ func validateValue(value reflect.Value, field string) error {
 		}
 		return nil
 	}
+
 	switch value.Kind() {
 	case reflect.Struct:
 		for index := range value.NumField() {
-			item := value.Type().Field(index)
-			child := joinField(field, item.Tag.Get("toml"))
+			var (
+				item  = value.Type().Field(index)
+				child = joinField(field, item.Tag.Get("toml"))
+			)
 			if choices := item.Tag.Get("choices"); choices != "" {
 				if !slices.Contains(strings.Split(choices, ","), value.Field(index).String()) {
 					return fieldError(child, "expected one of "+strings.ReplaceAll(choices, ",", ", "))
@@ -283,6 +296,7 @@ func checkedGuestTarget(value domain.GuestPath, field string) (string, error) {
 	if err != nil {
 		return "", fieldError(field, err.Error())
 	}
+
 	target := string(normalized)
 	for _, root := range []string{"/etc", "/boot", "/usr", "/var", "/nix", "/run", "/dev", "/proc", "/sys", "/bin", "/sbin", "/mnt/limanix", "/home/limanix-admin"} {
 		if isWithin(target, root) {
@@ -309,6 +323,7 @@ func Validate(config Config) error {
 	if path.Clean(config.Home.Root) == "/" {
 		return fieldError("home.root", "the host root directory is not allowed")
 	}
+
 	for _, protocol := range []struct {
 		name  string
 		ports []int
@@ -319,6 +334,7 @@ func Validate(config Config) error {
 			}
 		}
 	}
+
 	seen := map[domain.ModuleID]bool{}
 	for index, module := range config.NixOS.Modules {
 		if seen[module] {
@@ -326,11 +342,13 @@ func Validate(config Config) error {
 		}
 		seen[module] = true
 	}
+
 	userHome, err := checkedGuestTarget(config.User.Home, "user.home")
 	if err != nil {
 		return err
 	}
-	targets := []string{}
+
+	var targets []string
 	for index, mount := range config.Mounts {
 		field := fmt.Sprintf("mounts[%d].target", index)
 		target, err := checkedGuestTarget(mount.Target, field)
@@ -340,6 +358,7 @@ func Validate(config Config) error {
 		if isWithin(userHome, target) {
 			return fieldError(field, "would hide the managed user home")
 		}
+
 		for _, previous := range targets {
 			if isWithin(target, previous) || isWithin(previous, target) {
 				return fieldError(field, "overlaps another explicit mount")
@@ -351,7 +370,6 @@ func Validate(config Config) error {
 }
 
 // Load reads a regular UTF-8 TOML file and resolves host paths relative to its real location.
-// Missing mount sources are accepted; environment variable references remain literal.
 func Load(filename string) (Config, error) {
 	if err := domain.ValidateText(filename, false); err != nil {
 		return Config{}, fieldError("config", "invalid configuration file path")
@@ -372,13 +390,14 @@ func Load(filename string) (Config, error) {
 		return Config{}, fieldError("config", "configuration file cannot be read")
 	}
 	data, readErr := io.ReadAll(file)
-	if err := errors.Join(readErr, file.Close()); err != nil {
+	if err = errors.Join(readErr, file.Close()); err != nil {
 		return Config{}, fieldError("config", "configuration file cannot be read")
 	}
 	config, err := Parse(data)
 	if err != nil {
 		return Config{}, err
 	}
+
 	parent := filepath.Dir(resolved)
 	config.Home.Root, err = canonicalHostPath(config.Home.Root, parent)
 	if err != nil {
@@ -404,11 +423,12 @@ func canonicalHostPath(value, parent string) (string, error) {
 	if !filepath.IsAbs(expanded) {
 		expanded = parent + string(filepath.Separator) + expanded
 	}
+
 	resolved, err := filesystem.Resolve(expanded)
 	if err != nil {
 		return "", err
 	}
-	if err := domain.ValidateText(resolved, false); err != nil {
+	if err = domain.ValidateText(resolved, false); err != nil {
 		return "", err
 	}
 	return resolved, nil

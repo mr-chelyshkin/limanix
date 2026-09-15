@@ -6,8 +6,8 @@ import "github.com/mr-chelyshkin/limanix/internal/domain"
 type Resources struct {
 	Arch domain.Architecture `toml:"arch" json:"arch" doc:"Guest architecture."`
 	Disk domain.ByteSize     `toml:"disk" json:"disk" doc:"Guest system disk size in GiB."`
-	CPU  int                 `toml:"cpu" json:"cpu" doc:"Guest CPU count, a positive integer."`
 	Mem  domain.ByteSize     `toml:"mem" json:"mem" doc:"Guest memory size in GiB."`
+	CPU  int                 `toml:"cpu" json:"cpu" doc:"Guest CPU count, a positive integer."`
 }
 
 type User struct {
@@ -66,7 +66,6 @@ func Default() Config {
 		Mounts: []Mount{
 			{Mode: "rw", Source: "~/projects/my-project", Target: "/workspace"},
 			{Mode: "ro", Source: "~/.ssh/limanix", Target: "/mnt/git-keys"},
-			{Mode: "ro", Source: "~/.config/nvim", Target: "/home/dev/.config/nvim"},
 		},
 	}
 }

@@ -20,10 +20,12 @@ func Render(config Config) ([]byte, error) {
 	if err := Validate(config); err != nil {
 		return nil, err
 	}
+
 	var output strings.Builder
 	writeComments(&output, "Default Limanix configuration for a development sandbox.")
 	writeComments(&output, "Edit these values to match your environment.")
 	output.WriteByte('\n')
+
 	if err := renderModel(&output, reflect.ValueOf(config), ""); err != nil {
 		return nil, err
 	}
@@ -32,6 +34,7 @@ func Render(config Config) ([]byte, error) {
 
 func writeComments(output *strings.Builder, description string) {
 	line := "#"
+
 	for _, word := range strings.Fields(description) {
 		if len(line)+len(word)+1 > 88 {
 			output.WriteString(line + "\n")
@@ -50,22 +53,29 @@ func isTableArray(value reflect.Value) bool {
 
 func renderModel(output *strings.Builder, model reflect.Value, prefix string) error {
 	for index := range model.NumField() {
-		item := model.Type().Field(index)
-		value := model.Field(index)
+		var (
+			item  = model.Type().Field(index)
+			value = model.Field(index)
+		)
 		if value.Kind() == reflect.Struct || value.Kind() == reflect.Map || isTableArray(value) && value.Len() > 0 {
 			continue
 		}
+
 		encoded, err := tomlLiteral(value)
 		if err != nil {
 			return err
 		}
+
 		writeComments(output, item.Tag.Get("doc"))
 		output.WriteString(item.Tag.Get("toml") + " = " + encoded + "\n")
 	}
 	for index := range model.NumField() {
-		item := model.Type().Field(index)
-		value := model.Field(index)
-		name := joinField(prefix, item.Tag.Get("toml"))
+		var (
+			item  = model.Type().Field(index)
+			value = model.Field(index)
+			name  = joinField(prefix, item.Tag.Get("toml"))
+		)
+
 		switch {
 		case value.Kind() == reflect.Struct:
 			output.WriteByte('\n')
@@ -78,6 +88,7 @@ func renderModel(output *strings.Builder, model reflect.Value, prefix string) er
 			output.WriteByte('\n')
 			writeComments(output, item.Tag.Get("doc"))
 			output.WriteString("[" + name + "]\n")
+
 			for _, key := range sortedMapKeys(value) {
 				encoded, err := tomlLiteral(value.MapIndex(key))
 				if err != nil {
@@ -90,6 +101,7 @@ func renderModel(output *strings.Builder, model reflect.Value, prefix string) er
 				output.WriteByte('\n')
 				writeComments(output, item.Tag.Get("doc"))
 				output.WriteString("[[" + name + "]]\n")
+
 				if err := renderModel(output, value.Index(entry), name); err != nil {
 					return err
 				}
@@ -113,6 +125,7 @@ func tomlLiteral(value reflect.Value) (string, error) {
 		}
 		return quoteTOMLString(text), nil
 	}
+
 	switch value.Kind() {
 	case reflect.String:
 		return quoteTOMLString(value.String()), nil
@@ -137,14 +150,15 @@ func tomlLiteral(value reflect.Value) (string, error) {
 
 func quoteTOMLString(value string) string {
 	encoded, _ := json.Marshal(value)
-	// JSON leaves DEL literal, while TOML basic strings require it escaped.
 	return strings.ReplaceAll(string(encoded), "\x7f", `\u007f`)
 }
 
 func typeName(item reflect.StructField) string {
 	if item.Type == reflect.TypeFor[domain.Architecture]() {
-		values := domain.Architectures()
-		choices := make([]string, len(values))
+		var (
+			values  = domain.Architectures()
+			choices = make([]string, len(values))
+		)
 		for index, value := range values {
 			choices[index] = quoteTOMLString(string(value))
 		}
@@ -152,6 +166,7 @@ func typeName(item reflect.StructField) string {
 	}
 	if choices := item.Tag.Get("choices"); choices != "" {
 		values := strings.Split(choices, ",")
+
 		for index := range values {
 			values[index] = quoteTOMLString(values[index])
 		}
@@ -164,6 +179,7 @@ func modelTypeName(model reflect.Type) string {
 	if model == byteSizeType {
 		return "string (GiB)"
 	}
+
 	switch model.Kind() {
 	case reflect.String:
 		return "string"
@@ -186,6 +202,7 @@ func escapeMarkdownCell(value string) string {
 
 func markdownCode(value string) string {
 	value = escapeMarkdownCell(value)
+
 	for _, character := range "`*_[]\\" {
 		value = strings.ReplaceAll(value, string(character), fmt.Sprintf("&#%d;", character))
 	}
@@ -207,6 +224,7 @@ func referenceModel(output *strings.Builder, model reflect.Value, prefix string)
 	} else {
 		output.WriteString("## `" + prefix + "`\n\n")
 	}
+
 	output.WriteString("| Field | Type | Default | Description |\n| --- | --- | --- | --- |\n")
 	for index := range model.NumField() {
 		item := model.Type().Field(index)
@@ -220,6 +238,7 @@ func referenceModel(output *strings.Builder, model reflect.Value, prefix string)
 		}
 		fmt.Fprintf(output, "| %s | %s | %s | %s |\n", markdownCode(item.Tag.Get("toml")), markdownCode(typeName(item)), markdownCode(encoded), escapeMarkdownCell(item.Tag.Get("doc")))
 	}
+
 	output.WriteByte('\n')
 	for index := range model.NumField() {
 		item := model.Type().Field(index)
