@@ -9,8 +9,6 @@ import (
 	"strings"
 )
 
-// moduleIdentity records the version and content checksum of a linked module.
-// Local replacements have no content checksum and therefore cannot be reused safely.
 type moduleIdentity struct {
 	Path    string          `json:"path"`
 	Version string          `json:"version"`
@@ -18,8 +16,6 @@ type moduleIdentity struct {
 	Replace *moduleIdentity `json:"replace,omitempty"`
 }
 
-// buildMetadata is read from the executable, then compared with the build plan.
-// It deliberately excludes unrelated modules from the host application's go.mod.
 type buildMetadata struct {
 	Package      string            `json:"package"`
 	GoVersion    string            `json:"go_version"`
@@ -31,8 +27,7 @@ type buildMetadata struct {
 func moduleFromBuildInfo(m debug.Module) moduleIdentity {
 	result := moduleIdentity{Path: m.Path, Version: m.Version, Sum: m.Sum}
 	if m.Replace != nil {
-		replacement := moduleFromBuildInfo(*m.Replace)
-		result.Replace = &replacement
+		result.Replace = new(moduleFromBuildInfo(*m.Replace))
 	}
 	return result
 }
@@ -45,36 +40,39 @@ func metadataFromBuildInfo(info *debug.BuildInfo) buildMetadata {
 	for _, dep := range info.Deps {
 		result.Dependencies = append(result.Dependencies, moduleFromBuildInfo(*dep))
 	}
-	slices.SortFunc(result.Dependencies, func(a, b moduleIdentity) int { return strings.Compare(a.Path, b.Path) })
+
+	slices.SortFunc(result.Dependencies, func(a, b moduleIdentity) int {
+		return strings.Compare(a.Path, b.Path)
+	})
 	for _, setting := range info.Settings {
 		result.Settings[setting.Key] = setting.Value
 	}
 	return result
 }
 
-// compare reports the first concrete mismatch, for both cache checks and fresh builds.
-func (actual buildMetadata) compare(expected buildMetadata) error {
-	if actual.Package != expected.Package {
-		return fmt.Errorf("package: have %q, want %q", actual.Package, expected.Package)
+func (bm buildMetadata) compare(expected buildMetadata) error {
+	if bm.Package != expected.Package {
+		return fmt.Errorf("package: have %q, want %q", bm.Package, expected.Package)
 	}
-	if actual.GoVersion != expected.GoVersion {
-		return fmt.Errorf("compiler: have %q, want %q", actual.GoVersion, expected.GoVersion)
+	if bm.GoVersion != expected.GoVersion {
+		return fmt.Errorf("compiler: have %q, want %q", bm.GoVersion, expected.GoVersion)
 	}
-	if !reflect.DeepEqual(actual.Main, expected.Main) {
+	if !reflect.DeepEqual(bm.Main, expected.Main) {
 		return fmt.Errorf("lima source changed: have %s@%s (%s), want %s@%s (%s)",
-			actual.Main.Path, actual.Main.Version, actual.Main.Sum,
+			bm.Main.Path, bm.Main.Version, bm.Main.Sum,
 			expected.Main.Path, expected.Main.Version, expected.Main.Sum)
 	}
-	if len(actual.Dependencies) != len(expected.Dependencies) {
-		return fmt.Errorf("agent dependency count: have %d, want %d", len(actual.Dependencies), len(expected.Dependencies))
+	if len(bm.Dependencies) != len(expected.Dependencies) {
+		return fmt.Errorf("agent dependency count: have %d, want %d", len(bm.Dependencies), len(expected.Dependencies))
 	}
+
 	for i, dep := range expected.Dependencies {
-		if !reflect.DeepEqual(actual.Dependencies[i], dep) {
-			return fmt.Errorf("agent dependency changed: have %+v, want %+v", actual.Dependencies[i], dep)
+		if !reflect.DeepEqual(bm.Dependencies[i], dep) {
+			return fmt.Errorf("agent dependency changed: have %+v, want %+v", bm.Dependencies[i], dep)
 		}
 	}
 	for _, key := range slices.Sorted(maps.Keys(expected.Settings)) {
-		have, present := actual.Settings[key]
+		have, present := bm.Settings[key]
 		if !present {
 			return fmt.Errorf("missing build setting %s", key)
 		}
@@ -82,17 +80,18 @@ func (actual buildMetadata) compare(expected buildMetadata) error {
 			return fmt.Errorf("build setting %s: have %q, want %q", key, have, want)
 		}
 	}
-	for _, key := range slices.Sorted(maps.Keys(actual.Settings)) {
+	for _, key := range slices.Sorted(maps.Keys(bm.Settings)) {
 		if _, expected := expected.Settings[key]; !expected {
-			return fmt.Errorf("unexpected build setting %s=%q", key, actual.Settings[key])
+			return fmt.Errorf("unexpected build setting %s=%q", key, bm.Settings[key])
 		}
 	}
 	return nil
 }
 
-func (build buildMetadata) reusable() error {
-	for _, dep := range append([]moduleIdentity{build.Main}, build.Dependencies...) {
+func (bm buildMetadata) reusable() error {
+	for _, dep := range append([]moduleIdentity{bm.Main}, bm.Dependencies...) {
 		source := dep
+
 		if dep.Replace != nil {
 			source = *dep.Replace
 		}
