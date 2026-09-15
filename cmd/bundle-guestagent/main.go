@@ -54,6 +54,7 @@ func run(ctx context.Context, args []string, diagnostics io.Writer) int {
 	if err != nil {
 		return 2
 	}
+
 	if err = generator.Generate(ctx, opts.root, diagnostics); err != nil {
 		_, _ = fmt.Fprintln(diagnostics, "bundle-guestagent:", err)
 		return 1

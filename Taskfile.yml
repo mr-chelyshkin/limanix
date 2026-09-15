@@ -10,15 +10,50 @@ vars:
   hugo_version: '0.166.0'
 
 tasks:
-  ci/fmt:
-    desc: Check Go formatting
+  _build/darwin:
+    internal: true
+    vars:
+      binary: 'bin/limanix-{{.TARGET_ARCH}}'
+      macos_min: '13.0'
+    env:
+      CGO_CFLAGS: '-mmacosx-version-min={{.macos_min}}'
+      CGO_LDFLAGS: '-mmacosx-version-min={{.macos_min}}'
+      MACOSX_DEPLOYMENT_TARGET: '{{.macos_min}}'
+      GOARCH: '{{.TARGET_ARCH}}'
+      CGO_ENABLED: '1'
+      GOOS: darwin
     cmds:
-      - task: golang:gofumpt
+      - >-
+        go build -mod=readonly -trimpath
+        -ldflags {{.LINKER_FLAGS | trim | shellQuote}}
+        -o {{.binary | shellQuote}} ./cmd/limanix
+      - >-
+        codesign --force --sign -
+        --entitlements .github/assets/vz.entitlements {{.binary | shellQuote}}
+      - codesign --verify --strict {{.binary | shellQuote}}
+      - |
+        actual_macos=$(xcrun vtool -show-build {{.binary | shellQuote}} | awk '$1 == "minos" { print $2 }')
+        if [ "$actual_macos" != {{.macos_min | shellQuote}} ]; then
+          printf 'Unexpected macOS deployment target: %s (expected %s)\n' "$actual_macos" {{.macos_min | shellQuote}} >&2
+          exit 1
+        fi
 
   ci/lint:
     desc: Lint Go source and tests
     cmds:
       - task: golang:golangci
+
+  ci/vuln:
+    desc: Check Go vulnerabilities
+    cmds:
+      - task: golang:govulncheck
+
+  ci/fmt:
+    desc: Check Go formatting
+    cmds:
+      - task: golang:gofumpt
+        vars:
+          FMT_ARGS: '-l cmd internal'
 
   ci/test:
     desc: Run Go tests with the race detector
@@ -30,3 +65,28 @@ tasks:
         vars:
           TEST_ARGS: -race -tags=osusergo ./...
           CONTAINER_ENVS: USER=limanix
+
+  ci/build:
+    desc: Build and sign native macOS amd64 and arm64 binaries
+    vars:
+      release_tag: '{{.RELEASE_TAG | default ""}}'
+      lima_module: github.com/lima-vm/lima/v2
+      lima_version:
+        sh: go list -mod=readonly -m -f '{{`{{.Version}}`}}' {{.lima_module | shellQuote}}
+      linker_flags: >-
+        -s -w
+        -X {{.lima_module}}/pkg/version.Version={{.lima_version}}
+        {{if .release_tag}}-X github.com/mr-chelyshkin/limanix/internal/buildinfo.Version={{.release_tag}}{{end}}
+    preconditions:
+      - sh: test "$(uname -s)" = Darwin
+        msg: Native builds require macOS.
+      - sh: xcrun --find clang >/dev/null && xcrun --find vtool >/dev/null && command -v codesign >/dev/null
+        msg: Install the Xcode command-line tools before building native binaries.
+    cmds:
+      - go run ./cmd/bundle-guestagent --root .
+      - mkdir -p bin
+      - for: [amd64, arm64]
+        task: _build/darwin
+        vars:
+          TARGET_ARCH: '{{.ITEM}}'
+          LINKER_FLAGS: '{{.linker_flags}}'

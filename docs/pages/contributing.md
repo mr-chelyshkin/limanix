@@ -67,16 +67,14 @@ task --yes ci/build
 
 `ci/build` chooses both macOS architectures, binary names, and release flags in
 the project's Taskfile. It generates or verifies guest agents through the host
-Go toolchain, scans native sources, builds with CGO enabled, and signs and
+Go toolchain, builds with CGO enabled, and signs and
 verifies both binaries with `.github/assets/vz.entitlements`. The deployment
 target is macOS 13.0 and is checked in each binary's Mach-O metadata. It does not
 need Docker. `RELEASE_TAG` sets the embedded release version; an unset value keeps
 the development version.
 
-`ci/vuln` checks the Linux application sources and the Lima guest-agent package.
-`ci/vuln/native` runs the pinned `govulncheck` on macOS with CGO to include the
-VZ driver and Darwin-specific call graph. `ci/build` runs this check before
-building the binaries; it can also be run separately after guest-agent generation.
+Vulnerability checks and tests run separately through `ci/vuln` and `ci/test`;
+`ci/build` does not invoke them.
 
 The PR and tag workflows are defined in this repository. Go and documentation
 checks run on Ubuntu through `mr-chelyshkin/actions/invoke-taskfile@v1`.
