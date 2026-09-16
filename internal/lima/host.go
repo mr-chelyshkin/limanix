@@ -14,13 +14,11 @@ import (
 )
 
 // Preflight checks host prerequisites before allocating an instance.
-// QEMU may require an explicitly confirmed administrator setup of Lima networking.
 func (client *Client) Preflight(ctx context.Context, cfg config.Config) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
-	// Check the full backend name before allocation; generated IDs have fixed length.
 	identity := domain.Identity{
 		Name: cfg.Name,
 		ID:   strings.Repeat("0", domain.IDLength),
@@ -39,11 +37,11 @@ func (client *Client) Preflight(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 
-	if err := RequireNativeArchitecture(hostArch); err != nil {
+	if err = RequireNativeArchitecture(hostArch); err != nil {
 		return err
 	}
 
-	if _, err := exec.LookPath("ssh"); err != nil {
+	if _, err = exec.LookPath("ssh"); err != nil {
 		return fmt.Errorf("%w: %w", ErrMissingSSH, err)
 	}
 
@@ -57,8 +55,8 @@ func (client *Client) Preflight(ctx context.Context, cfg config.Config) error {
 	return client.checkQEMU(ctx, cfg.Resources.Arch)
 }
 
-// RequireMacOS checks the common host baseline before VM or privileged setup
-// operations. The bounded query also covers source builds with an older target.
+// RequireMacOS checks the common host baseline before VM or privileged setup operations.
+// The bounded query also covers source builds with an older target.
 func RequireMacOS(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -103,7 +101,7 @@ func (client *Client) checkQEMU(ctx context.Context, architecture domain.Archite
 	}
 
 	executable := "qemu-system-" + arch
-	if _, err := exec.LookPath(executable); err != nil {
+	if _, err = exec.LookPath(executable); err != nil {
 		return fmt.Errorf("install QEMU and make %s available in PATH: %w", executable, err)
 	}
 

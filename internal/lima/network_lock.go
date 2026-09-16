@@ -13,10 +13,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// withNetworkLock serializes Limanix lifecycle transitions in one LIMA_HOME.
-// Lima's reconciler counts running guests and the single guest being started.
-// The lock must cover startup itself: image preparation still reports Stopped,
-// and another reconciler would otherwise stop that guest's network daemon.
 func withNetworkLock(ctx context.Context, action func() error) (failure error) {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -48,8 +44,6 @@ func withNetworkLock(ctx context.Context, action func() error) (failure error) {
 	return action()
 }
 
-// The descriptor owns the flock. Closing it, including on process exit, releases
-// the lock; the persistent file is never unlinked while other processes wait.
 func waitForNetworkLock(ctx context.Context, file *os.File) error {
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()

@@ -11,7 +11,6 @@ import (
 )
 
 // ExpandHome expands a leading tilde without cleaning symlinks followed by '..'.
-// Named-user forms use the host user database.
 func ExpandHome(path string) (string, error) {
 	if !strings.HasPrefix(path, "~") {
 		return path, nil
@@ -62,8 +61,6 @@ func Resolve(path string) (string, error) {
 	return resolvePath(expanded, 0)
 }
 
-// Resolve each component before interpreting '..'; lexical cleanup would lose
-// the parent selected by a symlink. Missing tails remain usable for later creation.
 func resolvePath(value string, symlinkCount int) (string, error) {
 	if symlinkCount > 40 {
 		return "", ErrSymlinkLimit

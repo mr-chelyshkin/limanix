@@ -9,7 +9,6 @@ import (
 )
 
 // WriteTextAtomic writes valid UTF-8, returning the resolved destination.
-// A zero mode preserves an existing file's mode and creates new files with 0600.
 func WriteTextAtomic(path, text string, mode fs.FileMode) (string, error) {
 	if !utf8.ValidString(text) {
 		return "", wrapError(path, "write file", ErrInvalidUTF8)
@@ -20,7 +19,7 @@ func WriteTextAtomic(path, text string, mode fs.FileMode) (string, error) {
 		return "", err
 	}
 
-	if err := WriteFileAtomic(destination, []byte(text), mode); err != nil {
+	if err = WriteFileAtomic(destination, []byte(text), mode); err != nil {
 		return "", err
 	}
 
@@ -28,7 +27,6 @@ func WriteTextAtomic(path, text string, mode fs.FileMode) (string, error) {
 }
 
 // WriteFileAtomic syncs one private temporary file, renames it, then syncs its directory.
-// Failures before rename preserve old contents; a directory sync error occurs after replacement.
 func WriteFileAtomic(path string, data []byte, mode fs.FileMode) (failure error) {
 	destination, err := writeDestination(path)
 	if err != nil {
@@ -51,17 +49,17 @@ func WriteFileAtomic(path string, data []byte, mode fs.FileMode) (failure error)
 	}
 
 	defer func() {
-		err := os.Remove(temporary.Name())
+		err = os.Remove(temporary.Name())
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			failure = errors.Join(failure, wrapError(temporary.Name(), "remove temporary file", err))
 		}
 	}()
 
-	if err := writeTemporary(temporary, data, mode); err != nil {
+	if err = writeTemporary(temporary, data, mode); err != nil {
 		return wrapError(destination, "write file", err)
 	}
 
-	if err := os.Rename(temporary.Name(), destination); err != nil {
+	if err = os.Rename(temporary.Name(), destination); err != nil {
 		return wrapError(destination, "write file", err)
 	}
 
@@ -79,9 +77,6 @@ func writeDestination(path string) (string, error) {
 	return filepath.Join(directory, name), nil
 }
 
-// destinationMode inspects metadata without requiring access to the old contents.
-// Renaming a replacement requires a writable parent, not a writable target.
-// Symlinks and special files remain invalid destinations.
 func destinationMode(path string, requested fs.FileMode) (fs.FileMode, error) {
 	info, err := os.Lstat(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -112,7 +107,6 @@ func destinationMode(path string, requested fs.FileMode) (fs.FileMode, error) {
 	return mode, nil
 }
 
-// writeTemporary owns the descriptor and closes it on every return path.
 func writeTemporary(file *os.File, data []byte, mode fs.FileMode) (failure error) {
 	defer func() {
 		failure = errors.Join(failure, file.Close())

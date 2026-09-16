@@ -9,8 +9,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// RequireNativeArchitecture refuses translated VM operations because Lima's
-// native drivers select host capabilities using the process architecture.
+// RequireNativeArchitecture refuses translated VM operations because Lima's native drivers select host capabilities
+// using the process architecture.
 func RequireNativeArchitecture(host domain.Architecture) error {
 	if _, err := domain.NewArchitecture(string(host)); err != nil {
 		return fmt.Errorf("invalid host architecture: %w", err)

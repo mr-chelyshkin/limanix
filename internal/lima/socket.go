@@ -9,8 +9,6 @@ import (
 	"github.com/lima-vm/lima/v2/pkg/osutil"
 )
 
-// validateInstanceSocket uses the same byte boundary and longest temporary SSH
-// socket as Lima's instance.Create, before allocating host home or VM records.
 func validateInstanceSocket(name string) error {
 	if err := validateOwnedInstanceName(name); err != nil {
 		return err

@@ -11,9 +11,6 @@ import (
 	"github.com/lima-vm/lima/v2/pkg/store"
 )
 
-// nativeAPI isolates upstream entry points from the client policies: ownership,
-// cancellation, configuration validation and packaged executable selection.
-// Each function can be replaced in adapter tests without touching the Lima store.
 type nativeAPI struct {
 	instances      func() ([]string, error)
 	inspect        func(context.Context, string) (*limatype.Instance, error)

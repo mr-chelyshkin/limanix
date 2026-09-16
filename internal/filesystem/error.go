@@ -5,8 +5,6 @@ import (
 	"fmt"
 )
 
-// Validation errors describe rejected paths or text. Error adds operation and
-// path context without hiding these causes from errors.Is.
 var (
 	ErrSymlinkLimit     = errors.New("too many symbolic links")
 	ErrNotDirectory     = errors.New("path is not a directory")

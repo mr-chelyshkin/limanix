@@ -11,9 +11,9 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/domain"
 )
 
-// Client operates Lima's store, drivers and instance lifecycle in-process. Lima
-// starts this executable's hidden hostagent command; no limactl installation is
-// involved. The guest-agent provider returns the packaged agent for each guest.
+// Client operates Lima's store, drivers and instance lifecycle in-process.
+// Lima starts this executable's hidden hostagent command; no limactl installation is involved.
+// The guest-agent provider returns the packaged agent for each guest.
 // Its zero value is not usable; construct a Client with NewClient.
 type Client struct {
 	Stdin  io.Reader
@@ -21,23 +21,19 @@ type Client struct {
 	Stderr io.Writer
 
 	native     nativeAPI
-	agentPath  func(context.Context, domain.Architecture) (string, error)
 	executable func() (string, error)
+	agentPath  func(context.Context, domain.Architecture) (string, error)
 	sshCommand func(context.Context, *limatype.Instance, []string, bool) (*exec.Cmd, error)
 }
 
 // NewClient connects the native Lima APIs to the packaged guest-agent provider.
-// Construction performs no host inspection or filesystem operations.
-// Streams default to the current process and may be set by the composition root.
-// A nil agentPath is allowed for operations that do not launch a guest. Launching
-// a stopped guest without a provider returns ErrMissingAgentProvider.
 func NewClient(agentPath func(context.Context, domain.Architecture) (string, error)) *Client {
 	client := &Client{
 		Stdin:      os.Stdin,
 		Stdout:     os.Stdout,
 		Stderr:     os.Stderr,
-		native:     newNativeAPI(),
 		agentPath:  agentPath,
+		native:     newNativeAPI(),
 		executable: os.Executable,
 	}
 

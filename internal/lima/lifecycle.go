@@ -32,7 +32,6 @@ func (client *Client) Create(ctx context.Context, name, path string) (failure er
 }
 
 // Start resolves packaged executables and starts the persistent host agent.
-// An already running instance is left untouched.
 func (client *Client) Start(ctx context.Context, name string) (failure error) {
 	defer func() {
 		failure = operationError(ctx, "start", failure)
@@ -43,7 +42,7 @@ func (client *Client) Start(ctx context.Context, name string) (failure error) {
 		return err
 	}
 
-	if err := inspectionErrors(inst); err != nil {
+	if err = inspectionErrors(inst); err != nil {
 		return err
 	}
 
@@ -52,7 +51,7 @@ func (client *Client) Start(ctx context.Context, name string) (failure error) {
 	}
 
 	if inst.VMType == limatype.QEMU {
-		if err := client.ensureSharedNetworking(ctx); err != nil {
+		if err = client.ensureSharedNetworking(ctx); err != nil {
 			return err
 		}
 	}
@@ -63,7 +62,7 @@ func (client *Client) Start(ctx context.Context, name string) (failure error) {
 	}
 
 	return withNetworkLock(ctx, func() error {
-		if err := client.native.reconcile(ctx, name); err != nil {
+		if err = client.native.reconcile(ctx, name); err != nil {
 			return err
 		}
 
@@ -83,7 +82,7 @@ func (client *Client) Stop(ctx context.Context, name string) (failure error) {
 	}
 
 	return withNetworkLock(ctx, func() error {
-		if err := client.native.stop(ctx, inst, false); err != nil {
+		if err = client.native.stop(ctx, inst, false); err != nil {
 			return err
 		}
 
@@ -103,7 +102,7 @@ func (client *Client) Delete(ctx context.Context, name string, force bool) (fail
 	}
 
 	return withNetworkLock(ctx, func() error {
-		if err := client.native.delete(ctx, inst, force); err != nil {
+		if err = client.native.delete(ctx, inst, force); err != nil {
 			return err
 		}
 

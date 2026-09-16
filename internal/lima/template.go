@@ -67,7 +67,6 @@ func Render(cfg config.Config, managedHome, runtimeDir string, hostArch domain.A
 	return append(encoded, '\n'), nil
 }
 
-// usesVZ selects Apple's native hypervisor only for the hardware architecture.
 func usesVZ(architecture, host domain.Architecture) bool {
 	switch architecture {
 	case domain.ARM64, domain.AMD64:

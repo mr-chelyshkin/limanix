@@ -19,8 +19,6 @@ func validateOwnedInstanceName(name string) error {
 	return dirnames.ValidateInstName(name)
 }
 
-// inspectInstance restricts inspection to Limanix names. Damaged metadata remains
-// accessible to Delete, which may need it to clean up an incomplete instance.
 func (client *Client) inspectInstance(ctx context.Context, name string) (*limatype.Instance, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -38,15 +36,14 @@ func (client *Client) inspectInstance(ctx context.Context, name string) (*limaty
 		return nil, err
 	}
 
-	if err := query.Err(); err != nil {
+	if err = query.Err(); err != nil {
 		return nil, err
 	}
 
 	return inst, nil
 }
 
-// FetchAll enumerates the native Lima store and filters foreign names before
-// inspecting them. Upstream metadata is narrowed to the orchestration contract.
+// FetchAll enumerates the native Lima store and filters foreign names before inspecting them.
 func (client *Client) FetchAll(ctx context.Context) (instances []Instance, failure error) {
 	defer func() {
 		failure = operationError(ctx, "list", failure)

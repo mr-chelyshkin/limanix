@@ -15,8 +15,6 @@ import (
 	"github.com/mattn/go-isatty"
 )
 
-// remoteScript preserves each argument across SSH's remote shell parsing.
-// Entering the management user's login shell loads the guest's NixOS PATH.
 func remoteScript(args []string) string {
 	script := `cd -- / && exec "$SHELL" -l`
 	if len(args) == 0 {

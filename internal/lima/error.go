@@ -7,8 +7,6 @@ import (
 	"os/exec"
 )
 
-// Adapter errors distinguish host capability, ownership, metadata, and launch
-// requirements. Error preserves these causes and upstream failures for errors.Is/As.
 var (
 	ErrForeignInstance          = errors.New("instance is not managed by Limanix")
 	ErrMissingMetadata          = errors.New("expected instance metadata")
@@ -47,7 +45,6 @@ func (err *Error) Unwrap() error {
 }
 
 // CommandError retains the process exit status and a bounded stderr tail.
-// Arguments are intentionally absent: they can contain private guest values.
 type CommandError struct {
 	Exit   *exec.ExitError
 	Detail string
@@ -68,8 +65,6 @@ func (err *CommandError) Unwrap() error {
 	return err.Exit
 }
 
-// Some upstream shutdown paths report a timeout when their context is canceled.
-// Preserve the caller's cancellation cause at our adapter boundary.
 func operationError(ctx context.Context, operation string, err error) error {
 	if err == nil {
 		return nil

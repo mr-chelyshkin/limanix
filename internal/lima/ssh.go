@@ -39,7 +39,7 @@ func (client *Client) Run(ctx context.Context, name string, args []string, captu
 		command.Stderr = io.MultiWriter(client.Stderr, stderr)
 	}
 
-	if err := command.Run(); err != nil {
+	if err = command.Run(); err != nil {
 		return "", managementFailure(ctx, command, stderr, err)
 	}
 
@@ -63,7 +63,6 @@ func managementFailure(ctx context.Context, command *exec.Cmd, stderr *tailBuffe
 }
 
 // Shell inherits the controlling terminal and preserves the guest's exit status.
-// SIGINT belongs to foreground SSH; the CLI only cancels this context on SIGTERM.
 func (client *Client) Shell(ctx context.Context, name string, args []string) (status int, failure error) {
 	defer func() {
 		failure = wrapOperation("SSH", failure)

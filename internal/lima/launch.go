@@ -48,8 +48,6 @@ func (client *Client) launchPaths(ctx context.Context, architecture string) (lau
 }
 
 func (client *Client) launch(ctx context.Context, inst *limatype.Instance, paths launchPaths) error {
-	// Forward cancellation during startup, then detach the persistent host agent.
-	// WithLaunchingShell suppresses Lima's intermediate "limactl shell" instruction.
 	startup, cancel := context.WithCancel(instance.WithLaunchingShell(context.WithoutCancel(ctx)))
 	stopCancellation := context.AfterFunc(ctx, cancel)
 
