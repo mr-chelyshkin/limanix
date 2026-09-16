@@ -20,8 +20,8 @@ import (
 
 func TestFetchAllFiltersBeforeInspection(t *testing.T) {
 	client := NewClient(nil)
-	client.instances = func() ([]string, error) { return []string{"colima", "other-limanix-vm", "limanix-owned"}, nil }
-	client.inspect = func(_ context.Context, name string) (*limatype.Instance, error) {
+	client.native.instances = func() ([]string, error) { return []string{"colima", "other-limanix-vm", "limanix-owned"}, nil }
+	client.native.inspect = func(_ context.Context, name string) (*limatype.Instance, error) {
 		if name != "limanix-owned" {
 			t.Fatalf("foreign VM inspected: %s", name)
 		}
@@ -35,7 +35,7 @@ func TestFetchAllFiltersBeforeInspection(t *testing.T) {
 	if len(instances) != 1 || instances[0].Status != Running || *instances[0].Disk != 10*domain.GiB || !reflect.DeepEqual(instances[0].Networks, []Network{{MACAddress: "52:55:55:aa:bb:cc", Shared: true}}) {
 		t.Fatalf("unexpected metadata: %#v", instances)
 	}
-	client.instances = func() ([]string, error) { return []string{"colima"}, nil }
+	client.native.instances = func() ([]string, error) { return []string{"colima"}, nil }
 	instances, err = client.FetchAll(context.Background())
 	if err != nil || instances == nil || len(instances) != 0 {
 		t.Fatalf("expected empty nonnil list: %v %v", instances, err)
@@ -59,8 +59,8 @@ func TestNativeMetadataStatusesAndDamagedInstances(t *testing.T) {
 
 func TestNativeInspectionSkipsDeletedAndRejectsForeignNames(t *testing.T) {
 	client := NewClient(nil)
-	client.instances = func() ([]string, error) { return []string{"limanix-gone", "limanix-owned"}, nil }
-	client.inspect = func(_ context.Context, name string) (*limatype.Instance, error) {
+	client.native.instances = func() ([]string, error) { return []string{"limanix-gone", "limanix-owned"}, nil }
+	client.native.inspect = func(_ context.Context, name string) (*limatype.Instance, error) {
 		if name == "limanix-gone" {
 			return nil, os.ErrNotExist
 		}
@@ -85,9 +85,9 @@ func nativeLifecycleClient(t *testing.T, arch string) (*Client, *limatype.Instan
 		}
 		return "/private/agents/guest.gz", nil
 	})
-	client.inspect = func(context.Context, string) (*limatype.Instance, error) { return inst, nil }
+	client.native.inspect = func(context.Context, string) (*limatype.Instance, error) { return inst, nil }
 	client.executable = func() (string, error) { return "/application/limanix", nil }
-	client.reconcile = func(context.Context, string) error { return nil }
+	client.native.reconcile = func(context.Context, string) error { return nil }
 	return client, inst
 }
 
@@ -99,8 +99,8 @@ func TestNativeStartUsesSelfAndPackagedAgent(t *testing.T) {
 			defer cancel()
 			var childContext context.Context
 			var calls []string
-			client.reconcile = func(_ context.Context, name string) error { calls = append(calls, "network:"+name); return nil }
-			client.start = func(startup context.Context, actual *limatype.Instance, foreground, progress bool, self, agent string) error {
+			client.native.reconcile = func(_ context.Context, name string) error { calls = append(calls, "network:"+name); return nil }
+			client.native.start = func(startup context.Context, actual *limatype.Instance, foreground, progress bool, self, agent string) error {
 				childContext = startup
 				if actual != inst || foreground || progress || self != "/application/limanix" || agent != "/private/agents/guest.gz" {
 					t.Fatalf("incorrect native startup parameters: %v %v %s %s", foreground, progress, self, agent)
@@ -131,7 +131,7 @@ func TestNativeStartForwardsCancellationAndCleansFailure(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			var child context.Context
-			client.start = func(actual context.Context, _ *limatype.Instance, _ bool, _ bool, _ string, _ string) error {
+			client.native.start = func(actual context.Context, _ *limatype.Instance, _ bool, _ bool, _ string, _ string) error {
 				child = actual
 				switch mode {
 				case "inflight":
@@ -168,7 +168,7 @@ func TestNativeStartForwardsCancellationAndCleansFailure(t *testing.T) {
 
 func TestNativeStartDoesNotRestartRunningOrDamagedInstance(t *testing.T) {
 	client, inst := nativeLifecycleClient(t, limatype.AARCH64)
-	client.start = func(context.Context, *limatype.Instance, bool, bool, string, string) error {
+	client.native.start = func(context.Context, *limatype.Instance, bool, bool, string, string) error {
 		t.Fatal("unexpected startup")
 		return nil
 	}
@@ -189,7 +189,7 @@ func TestNativeCreatePassesBytesWithoutBrokenTemplateSideEffect(t *testing.T) {
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	client.create = func(_ context.Context, name string, actual []byte, saveBroken bool) (*limatype.Instance, error) {
+	client.native.create = func(_ context.Context, name string, actual []byte, saveBroken bool) (*limatype.Instance, error) {
 		if name != "limanix-owned" || !bytes.Equal(actual, data) || saveBroken {
 			t.Fatalf("incorrect create parameters: %s %q %v", name, actual, saveBroken)
 		}
@@ -201,7 +201,7 @@ func TestNativeCreatePassesBytesWithoutBrokenTemplateSideEffect(t *testing.T) {
 	if err := client.Create(context.Background(), "foreign", path); err == nil {
 		t.Fatal("created foreign instance")
 	}
-	client.create = func(context.Context, string, []byte, bool) (*limatype.Instance, error) {
+	client.native.create = func(context.Context, string, []byte, bool) (*limatype.Instance, error) {
 		return nil, os.ErrPermission
 	}
 	err := client.Create(context.Background(), "limanix-owned", path)
@@ -213,14 +213,14 @@ func TestNativeCreatePassesBytesWithoutBrokenTemplateSideEffect(t *testing.T) {
 func TestNativeStopDeleteOrderingAndForce(t *testing.T) {
 	client, inst := nativeLifecycleClient(t, limatype.AARCH64)
 	var calls []string
-	client.reconcile = func(_ context.Context, name string) error {
+	client.native.reconcile = func(_ context.Context, name string) error {
 		if name != "" {
 			t.Fatal("stopped instance reactivated networking")
 		}
 		calls = append(calls, "network")
 		return nil
 	}
-	client.stop = func(_ context.Context, actual *limatype.Instance, restart bool) error {
+	client.native.stop = func(_ context.Context, actual *limatype.Instance, restart bool) error {
 		if actual != inst || restart {
 			t.Fatal("incorrect graceful stop")
 		}
@@ -231,7 +231,7 @@ func TestNativeStopDeleteOrderingAndForce(t *testing.T) {
 		t.Fatal(err)
 	}
 	inst.Errors = []error{errors.New("damaged config")}
-	client.delete = func(_ context.Context, actual *limatype.Instance, force bool) error {
+	client.native.delete = func(_ context.Context, actual *limatype.Instance, force bool) error {
 		if actual != inst || !force {
 			t.Fatal("force or damaged metadata lost")
 		}
@@ -274,8 +274,8 @@ func editFixture(t *testing.T) (*Client, *limatype.Instance, string, []byte) {
 	}
 	inst := &limatype.Instance{Name: "limanix-owned", Status: limatype.StatusStopped, Dir: dir, Config: yaml}
 	client := NewClient(nil)
-	client.inspect = func(context.Context, string) (*limatype.Instance, error) { return inst, nil }
-	client.validateDriver = func(context.Context, *limatype.Instance) error { return nil }
+	client.native.inspect = func(context.Context, string) (*limatype.Instance, error) { return inst, nil }
+	client.native.validateDriver = func(context.Context, *limatype.Instance) error { return nil }
 	return client, inst, filepath.Join(dir, "replacement.yaml"), data
 }
 
@@ -289,7 +289,7 @@ func TestNativeEditValidatesThenAtomicallyReplaces(t *testing.T) {
 		t.Fatal(err)
 	}
 	validated := false
-	client.validateDriver = func(_ context.Context, actual *limatype.Instance) error {
+	client.native.validateDriver = func(_ context.Context, actual *limatype.Instance) error {
 		if *actual.Config.CPUs != 3 {
 			t.Fatal("driver did not receive new template")
 		}
@@ -325,9 +325,9 @@ func TestNativeEditFailurePreservesConfiguration(t *testing.T) {
 			case "invalid-schema":
 				data = []byte(`{"cpus":-1}`)
 			case "driver":
-				client.validateDriver = func(context.Context, *limatype.Instance) error { return errors.New("driver rejected changes") }
+				client.native.validateDriver = func(context.Context, *limatype.Instance) error { return errors.New("driver rejected changes") }
 			case "cancel":
-				client.validateDriver = func(context.Context, *limatype.Instance) error { cancel(); return nil }
+				client.native.validateDriver = func(context.Context, *limatype.Instance) error { cancel(); return nil }
 			}
 			if err := os.WriteFile(path, data, 0o600); err != nil {
 				t.Fatal(err)
@@ -350,8 +350,8 @@ func TestNativeOperationsRejectAlreadyCanceledContext(t *testing.T) {
 	client := NewClient(nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	client.instances = func() ([]string, error) { t.Fatal("enumerated after cancellation"); return nil, nil }
-	client.inspect = func(context.Context, string) (*limatype.Instance, error) {
+	client.native.instances = func() ([]string, error) { t.Fatal("enumerated after cancellation"); return nil, nil }
+	client.native.inspect = func(context.Context, string) (*limatype.Instance, error) {
 		t.Fatal("inspected after cancellation")
 		return nil, nil
 	}
@@ -366,7 +366,7 @@ func TestNativeStopPreservesCancellationCause(t *testing.T) {
 	client, inst := nativeLifecycleClient(t, limatype.AARCH64)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	client.stop = func(context.Context, *limatype.Instance, bool) error {
+	client.native.stop = func(context.Context, *limatype.Instance, bool) error {
 		cancel()
 		return errors.New("timed out waiting for instance to shut down after 3 minutes")
 	}

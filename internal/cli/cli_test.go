@@ -20,7 +20,6 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/domain"
 	"github.com/mr-chelyshkin/limanix/internal/lima"
 	"github.com/mr-chelyshkin/limanix/internal/modules"
-	"github.com/mr-chelyshkin/limanix/internal/state"
 	"github.com/mr-chelyshkin/limanix/internal/vm"
 )
 
@@ -36,21 +35,21 @@ type fakeManager struct {
 	entries     []vm.Info
 	failure     error
 	shellStatus int
-	create      func(context.Context) (state.Instance, error)
+	create      func(context.Context) (domain.Instance, error)
 	shell       func(context.Context) (int, error)
 }
 
-func (manager *fakeManager) Create(ctx context.Context, path string) (state.Instance, error) {
+func (manager *fakeManager) Create(ctx context.Context, path string) (domain.Instance, error) {
 	manager.calls = append(manager.calls, managerCall{operation: "create", path: path})
 	if manager.create != nil {
 		return manager.create(ctx)
 	}
-	return state.Instance{Identity: state.Identity{Name: "sandbox", Home: "/managed/home"}}, manager.failure
+	return domain.Instance{Identity: domain.Identity{Name: "sandbox", Home: "/managed/home"}}, manager.failure
 }
 
-func (manager *fakeManager) Update(_ context.Context, path string) (state.Instance, error) {
+func (manager *fakeManager) Update(_ context.Context, path string) (domain.Instance, error) {
 	manager.calls = append(manager.calls, managerCall{operation: "update", path: path})
-	return state.Instance{Identity: state.Identity{Name: "sandbox"}}, manager.failure
+	return domain.Instance{Identity: domain.Identity{Name: "sandbox"}}, manager.failure
 }
 
 func (manager *fakeManager) FetchAll(context.Context) ([]vm.Info, error) {
@@ -231,7 +230,7 @@ func TestListJSONEmptyArraysAndDamagedRows(t *testing.T) {
 			t.Fatalf("empty list must be JSON array: %d %q %q", status, output, diagnostics)
 		}
 	}
-	ready := state.Ready
+	ready := domain.Ready
 	running := lima.Running
 	failure := "identity.json is damaged"
 	home := "/managed/home"
@@ -373,15 +372,15 @@ func TestCLIHelper(t *testing.T) {
 		}
 	} else {
 		args = []string{"create", "--config=cfg.toml"}
-		manager.create = func(ctx context.Context) (state.Instance, error) {
+		manager.create = func(ctx context.Context) (domain.Instance, error) {
 			if err := syscall.Kill(os.Getpid(), syscall.SIGINT); err != nil {
-				return state.Instance{}, err
+				return domain.Instance{}, err
 			}
 			select {
 			case <-ctx.Done():
-				return state.Instance{}, ctx.Err()
+				return domain.Instance{}, ctx.Err()
 			case <-time.After(time.Second):
-				return state.Instance{}, errors.New("SIGINT was not propagated")
+				return domain.Instance{}, errors.New("SIGINT was not propagated")
 			}
 		}
 	}

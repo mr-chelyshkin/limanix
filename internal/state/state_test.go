@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -18,7 +19,7 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/filesystem"
 )
 
-func fixture(t *testing.T, name string) (*Store, Instance) {
+func fixture(t *testing.T, name string) (*Store, domain.Instance) {
 	t.Helper()
 	root, err := filesystem.Resolve(t.TempDir())
 	if err != nil {
@@ -28,16 +29,16 @@ func fixture(t *testing.T, name string) (*Store, Instance) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity := Identity{
+	identity := domain.Identity{
 		Name: domain.VMName(name), ID: "012345abcdef", Arch: domain.ARM64,
 		Username: domain.Username("dev"), UserHome: domain.GuestPath("/home/dev"),
 		HomeRoot: filepath.Join(root, "homes"), CreatedAt: "2026-09-13T12:00:00+00:00",
 	}
-	identity.Home, err = HomePath(identity.HomeRoot, identity.Name, identity.ID)
+	identity.Home, err = domain.HomePath(identity.HomeRoot, identity.Name, identity.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return store, Instance{Identity: identity, Status: Ready, Generation: "abcdef012345"}
+	return store, domain.Instance{Identity: identity, Status: domain.Ready, Generation: "abcdef012345"}
 }
 
 func TestSeparatePrivateRecordsAndImmutableIdentity(t *testing.T) {
@@ -82,7 +83,7 @@ func TestSeparatePrivateRecordsAndImmutableIdentity(t *testing.T) {
 		t.Fatal("replaced existing identity")
 	}
 	message := "guest rebuild failed"
-	original.Status, original.Error = Error, &message
+	original.Status, original.Error = domain.Failed, &message
 	if err := os.Chmod(runtimePath, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +95,7 @@ func TestSeparatePrivateRecordsAndImmutableIdentity(t *testing.T) {
 		t.Fatalf("rewrote immutable identity: %v", err)
 	}
 	loaded, err = store.Load(original.Identity.Name)
-	if err != nil || loaded.Status != Error || loaded.Error == nil || *loaded.Error != message {
+	if err != nil || loaded.Status != domain.Failed || loaded.Error == nil || *loaded.Error != message {
 		t.Fatalf("updated mutable record %+v: %v", loaded, err)
 	}
 	info, err := os.Stat(runtimePath)
@@ -204,7 +205,7 @@ func TestInvalidUTF8StateIsAnIsolatedDamagedRow(t *testing.T) {
 			healthy := broken
 			healthy.Identity.Name = "healthy"
 			var err error
-			healthy.Identity.Home, err = HomePath(healthy.Identity.HomeRoot, healthy.Identity.Name, healthy.Identity.ID)
+			healthy.Identity.Home, err = domain.HomePath(healthy.Identity.HomeRoot, healthy.Identity.Name, healthy.Identity.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -316,7 +317,7 @@ func TestIdentityRejectsInvalidTextBeforeIO(t *testing.T) {
 						original.Identity.HomeRoot += invalid.value
 						original.Identity.Home = filepath.Join(original.Identity.HomeRoot, "sandbox-"+original.Identity.ID)
 						expected = "invalid managed-home root"
-						if _, err := HomePath(original.Identity.HomeRoot, original.Identity.Name, original.Identity.ID); err == nil {
+						if _, err := domain.HomePath(original.Identity.HomeRoot, original.Identity.Name, original.Identity.ID); err == nil {
 							t.Fatal("accepted invalid allocation root")
 						}
 					} else {
@@ -342,7 +343,7 @@ func TestUnicodeHomeOwnershipRoundTrip(t *testing.T) {
 	original.Identity.HomeRoot = filepath.Join(filepath.Dir(store.Root()), "дома-🦀")
 	original.Identity.CreatedAt = "legacy metadata 🦀"
 	var err error
-	original.Identity.Home, err = HomePath(original.Identity.HomeRoot, original.Identity.Name, original.Identity.ID)
+	original.Identity.Home, err = domain.HomePath(original.Identity.HomeRoot, original.Identity.Name, original.Identity.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -394,7 +395,7 @@ func TestFetchAllSortsAndKeepsHealthyRecords(t *testing.T) {
 		instance := original
 		instance.Identity.Name = domain.VMName(name)
 		var err error
-		instance.Identity.Home, err = HomePath(instance.Identity.HomeRoot, instance.Identity.Name, instance.Identity.ID)
+		instance.Identity.Home, err = domain.HomePath(instance.Identity.HomeRoot, instance.Identity.Name, instance.Identity.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -449,7 +450,7 @@ func TestRetainedHomeArchiveSurvivesStateAndNameReuse(t *testing.T) {
 	}
 	second := first.Identity
 	second.ID = "abcdef012345"
-	second.Home, err = HomePath(second.HomeRoot, second.Name, second.ID)
+	second.Home, err = domain.HomePath(second.HomeRoot, second.Name, second.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -623,7 +624,7 @@ func TestLockHelperProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 	mode := os.Getenv("LIMANIX_STATE_HELPER_MODE")
-	var lock *Lock
+	var lock io.Closer
 	if mode == "registry" {
 		lock, err = store.RegistryLock(context.Background(), false, 0)
 	} else {
@@ -645,7 +646,7 @@ func TestLockHelperProcess(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		instance.Status = Status(status)
+		instance.Status = domain.Status(status)
 		if err := store.Save(instance); err != nil {
 			t.Fatal(err)
 		}
@@ -697,7 +698,7 @@ func TestRealProcessLocksArePerVMAndRegistryIndependent(t *testing.T) {
 }
 
 func TestKilledOperationsListInterruptedWithoutPersistingIt(t *testing.T) {
-	for _, status := range []Status{Creating, Updating, Deleting} {
+	for _, status := range []domain.Status{domain.Creating, domain.Updating, domain.Deleting} {
 		t.Run(string(status), func(t *testing.T) {
 			store, original := fixture(t, "sandbox")
 			if err := store.Save(original); err != nil {
@@ -757,7 +758,7 @@ func TestKilledOperationsListInterruptedWithoutPersistingIt(t *testing.T) {
 				t.Fatal("killed process succeeded")
 			}
 			entries, err = store.FetchAll()
-			if err != nil || len(entries) != 1 || entries[0].Instance == nil || entries[0].Instance.Status != Interrupted {
+			if err != nil || len(entries) != 1 || entries[0].Instance == nil || entries[0].Instance.Status != domain.Interrupted {
 				t.Fatalf("abandoned operation not marked interrupted: %+v %v", entries, err)
 			}
 			after, err := os.ReadFile(record)
@@ -773,7 +774,7 @@ func TestKilledOperationsListInterruptedWithoutPersistingIt(t *testing.T) {
 }
 
 func TestInterruptedRefreshReloadsCompletedOperation(t *testing.T) {
-	for _, status := range []Status{Creating, Updating} {
+	for _, status := range []domain.Status{domain.Creating, domain.Updating} {
 		t.Run(string(status), func(t *testing.T) {
 			store, original := fixture(t, "sandbox")
 			original.Status = status
@@ -794,7 +795,7 @@ func TestInterruptedRefreshReloadsCompletedOperation(t *testing.T) {
 				t.Fatalf("active operation was not read: %+v %v", stale, err)
 			}
 			completed := original
-			completed.Status = Ready
+			completed.Status = domain.Ready
 			completed.Generation = "fedcba987654"
 			if err := store.Save(completed); err != nil {
 				t.Fatal(err)

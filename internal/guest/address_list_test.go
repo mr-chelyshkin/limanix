@@ -6,13 +6,17 @@ import (
 	"testing"
 
 	"github.com/mr-chelyshkin/limanix/internal/domain"
+	"github.com/mr-chelyshkin/limanix/internal/guest"
 	"github.com/mr-chelyshkin/limanix/internal/lima"
+	"github.com/mr-chelyshkin/limanix/internal/managedhome"
+	"github.com/mr-chelyshkin/limanix/internal/modules"
+	"github.com/mr-chelyshkin/limanix/internal/nixos"
 	"github.com/mr-chelyshkin/limanix/internal/state"
 	"github.com/mr-chelyshkin/limanix/internal/vm"
 )
 
 type addressListBackend struct {
-	vm.Backend
+	*lima.Client
 	instances   []lima.Instance
 	unreachable string
 }
@@ -40,15 +44,15 @@ func TestVMListRetainsHealthyRowsAfterAddressProbeFailure(t *testing.T) {
 	for index, name := range []domain.VMName{"a-unreachable", "b-healthy"} {
 		identifier := []string{"aaaaaaaaaaaa", "bbbbbbbbbbbb"}[index]
 		root := filepath.Join(store.Root(), "homes")
-		home, err := state.HomePath(root, name, identifier)
+		home, err := domain.HomePath(root, name, identifier)
 		if err != nil {
 			t.Fatal(err)
 		}
-		identity := state.Identity{
+		identity := domain.Identity{
 			Name: name, ID: identifier, Username: "dev", UserHome: "/home/dev", Arch: domain.ARM64,
 			HomeRoot: root, Home: home, CreatedAt: "2026-09-15T00:00:00Z",
 		}
-		if err := store.Save(state.Instance{Identity: identity, Status: state.Ready, Generation: "cccccccccccc"}); err != nil {
+		if err := store.Save(domain.Instance{Identity: identity, Status: domain.Ready, Generation: "cccccccccccc"}); err != nil {
 			t.Fatal(err)
 		}
 		instance := lima.Instance{
@@ -61,7 +65,14 @@ func TestVMListRetainsHealthyRowsAfterAddressProbeFailure(t *testing.T) {
 		}
 	}
 	ctx := context.Background()
-	entries, err := vm.New(store, backend).FetchAll(ctx)
+	entries, err := vm.New(vm.Dependencies{
+		Store:   store,
+		Backend: backend,
+		Modules: modules.NewRegistry(store, nixos.BuiltinModules()),
+		Homes:   &managedhome.Manager{},
+		Guest:   guest.New(backend),
+		HostUID: 501,
+	}).FetchAll(ctx)
 	if err != nil || len(entries) != 2 {
 		t.Fatalf("an unavailable address blocked VM listing: entries=%v, error=%v", entries, err)
 	}

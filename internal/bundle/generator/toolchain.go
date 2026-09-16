@@ -10,9 +10,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
+// goToolchain pins the selected compiler executable and its sanitized environment.
 type goToolchain struct {
 	executable  string
 	root        string
@@ -33,11 +35,15 @@ func resolveToolchain(ctx context.Context, root string, diagnostics io.Writer) (
 			GOVERSION string
 		}
 		tool = &goToolchain{
-			executable: path, root: root, diagnostics: diagnostics,
-			env: append(buildEnvironment(os.Environ()), "GOTOOLCHAIN=auto"),
+			executable:  path,
+			root:        root,
+			diagnostics: diagnostics,
+			env:         buildEnvironment(os.Environ()),
 		}
 	)
-	data, err := tool.run(ctx, nil, "env", "-json", "GOROOT", "GOVERSION")
+
+	discovery := append(slices.Clone(tool.env), "GOTOOLCHAIN=auto")
+	data, err := tool.run(ctx, discovery, "env", "-json", "GOROOT", "GOVERSION")
 	if err != nil {
 		return nil, fmt.Errorf("resolve Go compiler: %w", err)
 	}
@@ -45,46 +51,15 @@ func resolveToolchain(ctx context.Context, root string, diagnostics io.Writer) (
 	if err = json.Unmarshal(data, &selected); err != nil {
 		return nil, fmt.Errorf("decode Go compiler settings: %w", err)
 	}
+
 	if !filepath.IsAbs(selected.GOROOT) || selected.GOVERSION == "" {
-		return nil, errors.New("go compiler returned an invalid GOROOT or GOVERSION")
+		return nil, ErrInvalidToolchain
 	}
 
 	tool.executable = filepath.Join(selected.GOROOT, "bin", "go")
-	tool.env = append(tool.env, "GOROOT="+selected.GOROOT)
-	tool.env[len(tool.env)-1] = "GOTOOLCHAIN=local"
+	tool.env = append(tool.env, "GOROOT="+selected.GOROOT, "GOTOOLCHAIN=local")
 	tool.version = selected.GOVERSION
 	return tool, nil
-}
-
-func buildEnvironment(inherited []string) []string {
-	env := make([]string, 0, len(inherited))
-	for _, entry := range inherited {
-		name, _, _ := strings.Cut(entry, "=")
-
-		switch name {
-		case "GOPATH", "GOMODCACHE", "GOCACHE", "GOPROXY", "GOSUMDB", "GOPRIVATE",
-			"GONOPROXY", "GONOSUMDB", "GOINSECURE", "GOVCS", "GOAUTH", "GOTELEMETRY":
-			env = append(env, entry)
-		default:
-			if !strings.HasPrefix(name, "GO") && !strings.HasPrefix(name, "CGO_") {
-				env = append(env, entry)
-			}
-		}
-	}
-	return append(
-		env,
-		"GOENV=off",
-		"GOWORK=off",
-		"GO111MODULE=on",
-		"GOFLAGS=",
-		"GOEXPERIMENT=",
-		"GOFIPS140=off",
-		"CGO_ENABLED=0",
-	)
-}
-
-func (tool *goToolchain) targetEnvironment(t target) []string {
-	return append(append([]string{}, tool.env...), "GOOS=linux", "GOARCH="+t.goArch, t.variant)
 }
 
 func (tool *goToolchain) run(ctx context.Context, env []string, args ...string) ([]byte, error) {
@@ -96,35 +71,26 @@ func (tool *goToolchain) run(ctx context.Context, env []string, args ...string) 
 	}
 
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
 		failure := fmt.Errorf("go %s: %w", strings.Join(args, " "), errors.Join(err, ctx.Err()))
 		if detail := strings.TrimSpace(stderr.String()); detail != "" {
 			failure = fmt.Errorf("%w\n%s", failure, detail)
 		}
+
 		return nil, failure
 	}
+
 	if stderr.Len() != 0 {
-		_, _ = io.Copy(tool.diagnostics, &stderr)
+		if _, err := io.Copy(tool.diagnostics, &stderr); err != nil {
+			return nil, fmt.Errorf("write compiler diagnostics: %w", err)
+		}
 	}
+
 	return stdout.Bytes(), nil
-}
-
-func (tool *goToolchain) limaVersion(ctx context.Context) (string, error) {
-	data, err := tool.run(ctx, nil, "list", "-mod=readonly", "-m", "-json", limaModulePath)
-	if err != nil {
-		return "", fmt.Errorf("resolve Lima dependency: %w", err)
-	}
-
-	var module moduleInfo
-	if err = json.Unmarshal(data, &module); err != nil {
-		return "", fmt.Errorf("decode Lima dependency: %w", err)
-	}
-	if module.Version == "" || module.Replace != nil {
-		return "", errors.New("generation requires an unreplaced, versioned Lima module")
-	}
-	return module.Version, nil
 }
 
 func (tool *goToolchain) build(ctx context.Context, plan buildPlan, destination string) error {

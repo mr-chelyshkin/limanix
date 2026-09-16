@@ -202,7 +202,7 @@ func TestAtomicWriteFailurePreservesFileAndCreatesNoTemporary(t *testing.T) {
 	}
 }
 
-func TestReadonlyFilesAndDirectoryRefuseReplacement(t *testing.T) {
+func TestAtomicReplacementRequiresWritableDirectory(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root bypasses Unix permission checks")
 	}
@@ -225,12 +225,22 @@ func TestReadonlyFilesAndDirectoryRefuseReplacement(t *testing.T) {
 					t.Error(err)
 				}
 			})
-			if _, err := WriteTextAtomic(path, "new", 0); err == nil {
-				t.Fatal("replaced readonly file")
+			_, writeErr := WriteTextAtomic(path, "new", 0)
+			want := "new"
+			if readonly == "directory" {
+				want = "keep"
+				if !errors.Is(writeErr, fs.ErrPermission) {
+					t.Fatalf("readonly directory: %v", writeErr)
+				}
+			} else {
+				if writeErr != nil {
+					t.Fatal(writeErr)
+				}
+				assertMode(t, path, mode)
 			}
 			data, err := os.ReadFile(path)
-			if err != nil || string(data) != "keep" {
-				t.Fatalf("original changed: %q %v", data, err)
+			if err != nil || string(data) != want {
+				t.Fatalf("contents %q, want %q: %v", data, want, err)
 			}
 		})
 	}

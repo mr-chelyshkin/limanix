@@ -3,7 +3,6 @@ package vm
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/mr-chelyshkin/limanix/internal/domain"
 	"github.com/mr-chelyshkin/limanix/internal/lima"
@@ -25,15 +24,19 @@ func (m *Manager) lifecycle(ctx context.Context, name domain.VMName, operation f
 		return err
 	}
 
-	defer func() { err = errors.Join(err, lock.Close()) }()
+	defer func() {
+		err = errors.Join(err, lock.Close())
+	}()
 
 	identity, err := m.store.LoadIdentity(name)
 	if err != nil {
 		return err
 	}
+
 	if _, err = m.requireLima(ctx, identity); err != nil {
 		return err
 	}
+
 	return operation(ctx, identity.LimaName())
 }
 
@@ -48,8 +51,13 @@ func (m *Manager) Shell(ctx context.Context, name domain.VMName, command []strin
 	if err != nil {
 		return 1, err
 	}
+
 	if actual.Status != lima.Running {
-		return 1, fmt.Errorf("VM '%s' is not running; use limanix start %s", name, name)
+		return 1, &InstanceError{
+			Name:  name,
+			Cause: ErrNotRunning,
+		}
 	}
+
 	return m.guest.Shell(ctx, identity.LimaName(), identity.Username, command)
 }

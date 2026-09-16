@@ -3,24 +3,42 @@ package vm
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/mr-chelyshkin/limanix/internal/config"
+	"github.com/mr-chelyshkin/limanix/internal/domain"
 	"github.com/mr-chelyshkin/limanix/internal/filesystem"
 	"github.com/mr-chelyshkin/limanix/internal/lima"
+	"github.com/mr-chelyshkin/limanix/internal/modules"
 	"github.com/mr-chelyshkin/limanix/internal/nixos"
-	"github.com/mr-chelyshkin/limanix/internal/state"
 )
 
-func (m *Manager) generationDir(instance state.Instance) (string, error) {
-	directory, err := m.store.InstanceDir(instance.Identity.Name)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(directory, "generations", instance.Generation), nil
+// generationBuilder owns immutable VM inputs, including registry source leases.
+// It does not change VM lifecycle records or invoke backend lifecycle operations.
+type generationBuilder struct {
+	store   Store
+	backend Backend
+	modules *modules.Registry
+	hostUID int
+
+	removeAll func(string) error
+	readDir   func(string) ([]os.DirEntry, error)
 }
 
-func (m *Manager) prepareGeneration(ctx context.Context, instance state.Instance, cfg config.Config) (string, error) {
+func newGenerationBuilder(deps Dependencies) *generationBuilder {
+	return &generationBuilder{
+		store:     deps.Store,
+		backend:   deps.Backend,
+		modules:   deps.Modules,
+		hostUID:   deps.HostUID,
+		removeAll: os.RemoveAll,
+		readDir:   os.ReadDir,
+	}
+}
+
+func (g *generationBuilder) prepare(ctx context.Context, instance domain.Instance, cfg config.Config) (string, error) {
 	hostArch, err := lima.HostArchitecture()
 	if err != nil {
 		return "", err
@@ -30,25 +48,16 @@ func (m *Manager) prepareGeneration(ctx context.Context, instance state.Instance
 		return "", err
 	}
 
-	directory, err := m.generationDir(instance)
+	directory, err := g.store.GenerationDir(instance)
 	if err != nil {
 		return "", err
 	}
 
-	sources, err := m.registry.Sources(ctx, cfg.NixOS.Modules)
-	if err != nil {
+	if err = g.prepareBundle(ctx, cfg, directory); err != nil {
 		return "", err
 	}
 
-	_, bundleErr := nixos.Prepare(cfg, directory, sources.Sources, m.getUID())
-	if err = errors.Join(bundleErr, sources.Close()); err != nil {
-		return "", err
-	}
-	if err = ctx.Err(); err != nil {
-		return "", err
-	}
-
-	document, err := lima.Render(cfg, instance.Identity.Home, directory, hostArch, m.getUID())
+	document, err := lima.Render(cfg, instance.Identity.Home, directory, hostArch, g.hostUID)
 	if err != nil {
 		return "", err
 	}
@@ -57,33 +66,69 @@ func (m *Manager) prepareGeneration(ctx context.Context, instance state.Instance
 	if err = filesystem.WriteFileAtomic(template, document, 0o600); err != nil {
 		return "", err
 	}
-	if err = m.backend.Validate(ctx, template); err != nil {
+
+	if err = g.backend.Validate(ctx, template); err != nil {
 		return "", err
 	}
+
 	return template, ctx.Err()
 }
 
-func (m *Manager) pruneGenerations(instance state.Instance) {
-	current, err := m.generationDir(instance)
+func (g *generationBuilder) prepareBundle(ctx context.Context, cfg config.Config, directory string) (err error) {
+	sources, err := g.modules.Sources(ctx, cfg.NixOS.Modules)
 	if err != nil {
-		m.Warn("VM '%s' was updated, but generations could not be found: %v", instance.Identity.Name, err)
-		return
+		return err
+	}
+
+	defer func() {
+		err = errors.Join(err, sources.Close())
+	}()
+
+	if _, err = nixos.Prepare(cfg, directory, sources.Sources, g.hostUID); err != nil {
+		return err
+	}
+
+	return ctx.Err()
+}
+
+// discard removes only an input generation that has not been committed to state.
+func (g *generationBuilder) discard(instance domain.Instance) error {
+	directory, err := g.store.GenerationDir(instance)
+	if err != nil {
+		return err
+	}
+
+	return g.removeAll(directory)
+}
+
+// prune removes stale generations after the new ready record has been committed.
+func (g *generationBuilder) prune(instance domain.Instance) []error {
+	current, err := g.store.GenerationDir(instance)
+	if err != nil {
+		return []error{fmt.Errorf("VM '%s' was updated, but generations could not be found: %w", instance.Identity.Name, err)}
 	}
 
 	parent := filepath.Dir(current)
-	entries, err := m.readDir(parent)
+	entries, err := g.readDir(parent)
 	if err != nil {
-		m.Warn("VM '%s' was updated, but old generations could not be listed: %v", instance.Identity.Name, err)
-		return
+		return []error{fmt.Errorf("VM '%s' was updated, but old generations could not be listed: %w", instance.Identity.Name, err)}
 	}
+
+	var failures []error
 
 	for _, entry := range entries {
 		candidate := filepath.Join(parent, entry.Name())
 		if candidate == current {
 			continue
 		}
-		if err = m.removeAll(candidate); err != nil {
-			m.Warn("VM '%s' was updated, but old generation '%s' could not be removed: %v", instance.Identity.Name, candidate, err)
+
+		if err = g.removeAll(candidate); err != nil {
+			failures = append(failures, fmt.Errorf(
+				"VM '%s' was updated, but old generation '%s' could not be removed: %w",
+				instance.Identity.Name, candidate, err,
+			))
 		}
 	}
+
+	return failures
 }

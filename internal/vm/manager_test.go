@@ -11,13 +11,17 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/mr-chelyshkin/limanix/internal/config"
 	"github.com/mr-chelyshkin/limanix/internal/domain"
 	"github.com/mr-chelyshkin/limanix/internal/filesystem"
+	"github.com/mr-chelyshkin/limanix/internal/guest"
 	"github.com/mr-chelyshkin/limanix/internal/lima"
 	"github.com/mr-chelyshkin/limanix/internal/managedhome"
+	"github.com/mr-chelyshkin/limanix/internal/modules"
+	"github.com/mr-chelyshkin/limanix/internal/nixos"
 	"github.com/mr-chelyshkin/limanix/internal/state"
 )
 
@@ -29,6 +33,7 @@ type backendCall struct {
 }
 
 type fakeBackend struct {
+	callsMu           sync.Mutex
 	instances         map[string]lima.Instance
 	calls             []backendCall
 	failOn            string
@@ -38,6 +43,9 @@ type fakeBackend struct {
 }
 
 func (f *fakeBackend) called(operation, name string, force bool, args []string) error {
+	f.callsMu.Lock()
+	defer f.callsMu.Unlock()
+
 	f.calls = append(f.calls, backendCall{operation, name, force, append([]string(nil), args...)})
 	if f.failOn == operation {
 		return fmt.Errorf("backend diagnostic with sensitive-test-token: %s", operation)
@@ -195,8 +203,7 @@ func fixture(t *testing.T) fixtureData {
 		t.Fatal(err)
 	}
 	backend := &fakeBackend{instances: make(map[string]lima.Instance)}
-	manager := New(store, backend)
-	manager.getUID = func() int { return 501 }
+	manager := testManager(store, backend)
 	return fixtureData{root, project, store, backend, manager}
 }
 
@@ -234,8 +241,7 @@ func TestSocketPreflightLeavesHomeAndStateUnallocated(t *testing.T) {
 			f := fixture(t)
 			limaRoot := filepath.Join(f.root, "lima")
 			t.Setenv("LIMA_HOME", limaRoot)
-			manager := New(f.store, lima.NewClient(nil))
-			manager.getUID = func() int { return 501 }
+			manager := testManager(f.store, lima.NewClient(nil))
 			cfg := f.configuration(strings.Repeat("n", test.length))
 			_, err := manager.Create(context.Background(), f.writeConfig(t, cfg))
 			if err == nil || !strings.Contains(err.Error(), test.error) {
@@ -248,7 +254,7 @@ func TestSocketPreflightLeavesHomeAndStateUnallocated(t *testing.T) {
 	}
 }
 
-func (f fixtureData) create(t *testing.T, name string) (state.Instance, string) {
+func (f fixtureData) create(t *testing.T, name string) (domain.Instance, string) {
 	t.Helper()
 	path := f.writeConfig(t, f.configuration(name))
 	instance, err := f.manager.Create(context.Background(), path)
@@ -284,7 +290,7 @@ func (f fixtureData) instanceDirectory(t *testing.T, name domain.VMName) string 
 func TestCreateReadyKeepsSecretsOutOfStateAndCopiesModulesOnce(t *testing.T) {
 	f := fixture(t)
 	instance, _ := f.create(t, "sandbox")
-	if instance.Status != state.Ready {
+	if instance.Status != domain.Ready {
 		t.Fatalf("state %s", instance.Status)
 	}
 	loaded, err := f.store.Load(instance.Identity.Name)
@@ -305,7 +311,7 @@ func TestCreateReadyKeepsSecretsOutOfStateAndCopiesModulesOnce(t *testing.T) {
 			t.Fatalf("secret/config leaked into %s: %s", name, data)
 		}
 	}
-	generation, err := f.manager.generationDir(instance)
+	generation, err := f.store.GenerationDir(instance)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +331,7 @@ func TestCreateBeforeBackendFailureRemovesPreparedStateAndHome(t *testing.T) {
 			if stage == "validate" {
 				f.backend.failOn = "validate"
 			} else {
-				f.manager.createHome = func(state.Identity) (string, error) { return "", errors.New("home allocation denied") }
+				f.manager.homes.(*testHomes).create = func(domain.Identity) (string, error) { return "", errors.New("home allocation denied") }
 			}
 			instance, err := f.manager.Create(context.Background(), path)
 			if err == nil {
@@ -348,7 +354,7 @@ func TestCreateGuestFailureKeepsRecoverableOwnershipAndUpdateRecovers(t *testing
 		t.Fatal("create succeeded despite rebuild failure")
 	}
 	instance, err := f.store.Load("sandbox")
-	if err != nil || instance.Status != state.Error || instance.Error == nil {
+	if err != nil || instance.Status != domain.Failed || instance.Error == nil {
 		t.Fatalf("failed create not recoverable: %+v %v", instance, err)
 	}
 	if strings.Contains(*instance.Error, "sensitive-test-token") {
@@ -357,7 +363,7 @@ func TestCreateGuestFailureKeepsRecoverableOwnershipAndUpdateRecovers(t *testing
 	assertExists(t, instance.Identity.Home)
 	f.backend.failOn = ""
 	updated, err := f.manager.Update(context.Background(), path)
-	if err != nil || updated.Status != state.Ready || updated.Identity != instance.Identity {
+	if err != nil || updated.Status != domain.Ready || updated.Identity != instance.Identity {
 		t.Fatalf("recovery update %+v: %v", updated, err)
 	}
 }
@@ -368,7 +374,7 @@ type firstSaveFailureStore struct {
 	failure error
 }
 
-func (s *firstSaveFailureStore) Save(instance state.Instance) error {
+func (s *firstSaveFailureStore) Save(instance domain.Instance) error {
 	if !s.failed {
 		s.failed = true
 		return s.failure
@@ -381,21 +387,21 @@ func TestFailedHomeCleanupRetainsIdentityForRecovery(t *testing.T) {
 	saveFailure := errors.New("first state save unavailable")
 	removeFailure := errors.New("home cleanup denied")
 	f.manager.store = &firstSaveFailureStore{Store: f.store, failure: saveFailure}
-	f.manager.removeHome = func(state.Identity) error { return removeFailure }
+	f.manager.homes.(*testHomes).remove = func(domain.Identity) error { return removeFailure }
 	path := f.writeConfig(t, f.configuration("sandbox"))
 	result, err := f.manager.Create(context.Background(), path)
 	if !errors.Is(err, saveFailure) || !errors.Is(err, removeFailure) {
 		t.Fatalf("original errors not retained: %v", err)
 	}
 	loaded, err := f.store.Load(result.Identity.Name)
-	if err != nil || loaded.Identity != result.Identity || loaded.Status != state.Error {
+	if err != nil || loaded.Identity != result.Identity || loaded.Status != domain.Failed {
 		t.Fatalf("cleanup orphaned home ownership: %+v %v", loaded, err)
 	}
 	assertExists(t, result.Identity.Home)
 	if len(f.backend.instances) != 0 {
 		t.Fatal("backend creation started after local preparation failure")
 	}
-	f.manager.removeHome = managedhome.Remove
+	f.manager.homes.(*testHomes).remove = (&managedhome.Manager{}).Remove
 	if _, err := f.manager.Delete(context.Background(), result.Identity.Name, false, true); err != nil {
 		t.Fatal("retained identity cannot recover deletion:", err)
 	}
@@ -406,8 +412,8 @@ func TestCanceledCreateCleansHomeBeforeBackendCreation(t *testing.T) {
 	f := fixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	f.manager.createHome = func(identity state.Identity) (string, error) {
-		home, err := managedhome.Create(identity)
+	f.manager.homes.(*testHomes).create = func(identity domain.Identity) (string, error) {
+		home, err := (&managedhome.Manager{}).Create(identity)
 		cancel()
 		return home, err
 	}
@@ -431,7 +437,7 @@ func TestFailedUpdateRetriesPruneAllStaleGenerations(t *testing.T) {
 			t.Fatal("update succeeded despite guest failure")
 		}
 	}
-	generation, err := f.manager.generationDir(first)
+	generation, err := f.store.GenerationDir(first)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -442,7 +448,7 @@ func TestFailedUpdateRetriesPruneAllStaleGenerations(t *testing.T) {
 	}
 	f.backend.failOn = ""
 	updated, err := f.manager.Update(context.Background(), path)
-	if err != nil || updated.Status != state.Ready || updated.Identity != first.Identity {
+	if err != nil || updated.Status != domain.Ready || updated.Identity != first.Identity {
 		t.Fatalf("retry %+v: %v", updated, err)
 	}
 	entries, err = os.ReadDir(parent)
@@ -456,7 +462,7 @@ func TestSuccessfulUpdateCleanupFailureOnlyWarns(t *testing.T) {
 		t.Run(failure, func(t *testing.T) {
 			f := fixture(t)
 			first, path := f.create(t, "sandbox")
-			generation, err := f.manager.generationDir(first)
+			generation, err := f.store.GenerationDir(first)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -464,14 +470,14 @@ func TestSuccessfulUpdateCleanupFailureOnlyWarns(t *testing.T) {
 			var warnings []string
 			f.manager.Warn = func(format string, args ...any) { warnings = append(warnings, fmt.Sprintf(format, args...)) }
 			if failure == "remove" {
-				f.manager.removeAll = func(path string) error {
+				f.manager.generations.removeAll = func(path string) error {
 					if filepath.Dir(path) == parent {
 						return errors.New("cleanup denied")
 					}
 					return os.RemoveAll(path)
 				}
 			} else {
-				f.manager.readDir = func(path string) ([]os.DirEntry, error) {
+				f.manager.generations.readDir = func(path string) ([]os.DirEntry, error) {
 					if path == parent {
 						return nil, errors.New("listing denied")
 					}
@@ -479,7 +485,7 @@ func TestSuccessfulUpdateCleanupFailureOnlyWarns(t *testing.T) {
 				}
 			}
 			updated, err := f.manager.Update(context.Background(), path)
-			if err != nil || updated.Status != state.Ready || updated.Error != nil || len(warnings) != 1 {
+			if err != nil || updated.Status != domain.Ready || updated.Error != nil || len(warnings) != 1 {
 				t.Fatalf("cleanup changed operation outcome: %+v %v %v", updated, err, warnings)
 			}
 			loaded, err := f.store.Load(first.Identity.Name)
@@ -581,7 +587,7 @@ type archiveFailureStore struct {
 	failure error
 }
 
-func (s *archiveFailureStore) PreserveHome(identity state.Identity) (string, error) {
+func (s *archiveFailureStore) PreserveHome(identity domain.Identity) (string, error) {
 	if s.failure != nil {
 		return "", s.failure
 	}
@@ -651,7 +657,7 @@ func TestCorruptRuntimeIsListedAndCanBeDeleted(t *testing.T) {
 		t.Fatal(err)
 	}
 	infos, err := f.manager.FetchAll(context.Background())
-	if err != nil || len(infos) != 2 || infos[0].Name != "broken" || infos[0].Error == nil || infos[0].OperationStatus != nil || infos[1].OperationStatus == nil || *infos[1].OperationStatus != state.Ready {
+	if err != nil || len(infos) != 2 || infos[0].Name != "broken" || infos[0].Error == nil || infos[0].OperationStatus != nil || infos[1].OperationStatus == nil || *infos[1].OperationStatus != domain.Ready {
 		t.Fatalf("corruption broke typed list: %+v %v", infos, err)
 	}
 	if _, err := f.manager.Delete(context.Background(), broken.Identity.Name, true, true); err != nil {
@@ -673,7 +679,7 @@ func TestUpdateRefreshesBackendStatusAfterPreparation(t *testing.T) {
 	}
 	f.backend.rejectStoppedStop = true
 	updated, err := f.manager.Update(context.Background(), path)
-	if err != nil || updated.Status != state.Ready || f.backend.instances[instance.Identity.LimaName()].Status != lima.Running {
+	if err != nil || updated.Status != domain.Ready || f.backend.instances[instance.Identity.LimaName()].Status != lima.Running {
 		t.Fatalf("update used stale status: %+v %v", updated, err)
 	}
 }
@@ -719,7 +725,7 @@ func TestUpdateRechecksDiskBeforeStoppingVM(t *testing.T) {
 			cfg := f.configuration("sandbox")
 			cfg.Resources.Disk = domain.ByteSize(size)
 			updated, err := f.manager.Update(context.Background(), f.writeConfig(t, cfg))
-			if err != nil || updated.Identity != instance.Identity || updated.Status != state.Ready {
+			if err != nil || updated.Identity != instance.Identity || updated.Status != domain.Ready {
 				t.Fatalf("valid retry could not recover: %+v %v", updated, err)
 			}
 		})
@@ -740,16 +746,16 @@ func TestUpdateAddsBundledAndImportedModulesToExistingVM(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "default.nix"), []byte("{ ... }: { services.openssh.enable = true; }"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.manager.registry.Add(context.Background(), "custom", source); err != nil {
+	if err := f.manager.generations.modules.Add(context.Background(), "custom", source); err != nil {
 		t.Fatal(err)
 	}
 	cfg := f.configuration("sandbox")
 	cfg.NixOS.Modules = []domain.ModuleID{"git", "rust", "third-party:custom"}
 	updated, err := f.manager.Update(context.Background(), f.writeConfig(t, cfg))
-	if err != nil || updated.Identity != first.Identity || updated.Status != state.Ready {
+	if err != nil || updated.Identity != first.Identity || updated.Status != domain.Ready {
 		t.Fatalf("module update %+v: %v", updated, err)
 	}
-	generation, err := f.manager.generationDir(updated)
+	generation, err := f.store.GenerationDir(updated)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -852,7 +858,7 @@ func TestOtherVMAndRegistryOperateWhileFirstVMIsLocked(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "default.nix"), []byte("{ ... }: {}"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.manager.registry.Add(context.Background(), "custom", source); err != nil {
+	if err := f.manager.generations.modules.Add(context.Background(), "custom", source); err != nil {
 		t.Fatal("module registry was blocked by VM lock:", err)
 	}
 	if err := f.manager.Stop(context.Background(), alpha.Identity.Name); !errors.Is(err, state.ErrLockBusy) {
@@ -880,7 +886,7 @@ func TestMissingBackendCanBeListedAndDeleted(t *testing.T) {
 func TestListShowsInterruptedWithoutChangingPersistentState(t *testing.T) {
 	f := fixture(t)
 	instance, _ := f.create(t, "sandbox")
-	instance.Status = state.Updating
+	instance.Status = domain.Updating
 	if err := f.store.Save(instance); err != nil {
 		t.Fatal(err)
 	}
@@ -890,7 +896,7 @@ func TestListShowsInterruptedWithoutChangingPersistentState(t *testing.T) {
 		t.Fatal(err)
 	}
 	infos, err := f.manager.FetchAll(context.Background())
-	if err != nil || len(infos) != 1 || infos[0].OperationStatus == nil || *infos[0].OperationStatus != state.Interrupted || infos[0].BackendStatus == nil || *infos[0].BackendStatus != lima.Running {
+	if err != nil || len(infos) != 1 || infos[0].OperationStatus == nil || *infos[0].OperationStatus != domain.Interrupted || infos[0].BackendStatus == nil || *infos[0].BackendStatus != lima.Running {
 		t.Fatalf("abandoned operation not represented: %+v %v", infos, err)
 	}
 	after, err := os.ReadFile(record)
@@ -907,7 +913,7 @@ func TestListShowsInterruptedWithoutChangingPersistentState(t *testing.T) {
 		}
 	}()
 	infos, err = f.manager.FetchAll(context.Background())
-	if err != nil || len(infos) != 1 || infos[0].OperationStatus == nil || *infos[0].OperationStatus != state.Updating {
+	if err != nil || len(infos) != 1 || infos[0].OperationStatus == nil || *infos[0].OperationStatus != domain.Updating {
 		t.Fatalf("active operation misreported as interrupted: %+v %v", infos, err)
 	}
 }
@@ -930,4 +936,39 @@ func TestShellPreservesArgumentsAndChildExitStatus(t *testing.T) {
 	if _, err := f.manager.Shell(context.Background(), instance.Identity.Name, nil); err == nil || !strings.Contains(err.Error(), "not running") {
 		t.Fatalf("entered a stopped VM: %v", err)
 	}
+}
+
+type testHomes struct {
+	create func(domain.Identity) (string, error)
+	remove func(domain.Identity) error
+}
+
+func (h *testHomes) Create(identity domain.Identity) (string, error) {
+	if h.create != nil {
+		return h.create(identity)
+	}
+	return (&managedhome.Manager{}).Create(identity)
+}
+
+func (h *testHomes) Remove(identity domain.Identity) error {
+	if h.remove != nil {
+		return h.remove(identity)
+	}
+	return (&managedhome.Manager{}).Remove(identity)
+}
+
+type testBackend interface {
+	Backend
+	guest.Client
+}
+
+func testManager(store *state.Store, backend testBackend) *Manager {
+	return New(Dependencies{
+		Store:   store,
+		Backend: backend,
+		Modules: modules.NewRegistry(store, nixos.BuiltinModules()),
+		Homes:   &testHomes{},
+		Guest:   guest.New(backend),
+		HostUID: 501,
+	})
 }

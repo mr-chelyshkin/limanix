@@ -10,7 +10,13 @@ import (
 
 // Reference renders the CLI from its actual command tree and flag definitions.
 func Reference() string {
-	root := Command(IO{In: strings.NewReader(""), Out: io.Discard, Err: io.Discard}, Dependencies{})
+	streams := IO{
+		In:  strings.NewReader(""),
+		Out: io.Discard,
+		Err: io.Discard,
+	}
+
+	root := Command(streams, Dependencies{})
 	root.InitDefaultHelpCmd()
 	root.InitDefaultHelpFlag()
 
@@ -23,9 +29,11 @@ func Reference() string {
 		if cmd.Hidden || cmd.Name() == "help" {
 			return
 		}
+
 		cmd.InitDefaultHelpFlag()
-		
+
 		fmt.Fprintf(&result, "## `%s`\n\n%s\n\n```text\n%s\n```\n\n", cmd.CommandPath(), cmd.Short, strings.TrimSpace(cmd.UsageString()))
+
 		for _, child := range cmd.Commands() {
 			render(child)
 		}

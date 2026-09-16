@@ -98,7 +98,7 @@ func helperSSHClient(t *testing.T, mode string) *Client {
 	t.Helper()
 	client := NewClient(nil)
 	client.Stdout, client.Stderr = io.Discard, io.Discard
-	client.inspect = func(_ context.Context, name string) (*limatype.Instance, error) {
+	client.native.inspect = func(_ context.Context, name string) (*limatype.Instance, error) {
 		return &limatype.Instance{Name: name, Status: limatype.StatusRunning}, nil
 	}
 	client.sshCommand = func(ctx context.Context, _ *limatype.Instance, args []string, _ bool) (*exec.Cmd, error) {
@@ -317,7 +317,7 @@ func TestSSHShellPreservesExitAndSignals(t *testing.T) {
 
 func TestSSHSessionRejectsStoppedAndForeignInstances(t *testing.T) {
 	client := helperSSHClient(t, "arguments")
-	client.inspect = func(_ context.Context, name string) (*limatype.Instance, error) {
+	client.native.inspect = func(_ context.Context, name string) (*limatype.Instance, error) {
 		return &limatype.Instance{Name: name, Status: limatype.StatusStopped}, nil
 	}
 	if _, err := client.Run(context.Background(), "limanix-test", []string{"true"}, true); err == nil {

@@ -8,6 +8,7 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/filesystem"
 )
 
+// runtimeUser is consumed by the embedded NixOS runtime module.
 type runtimeUser struct {
 	Name domain.Username  `json:"name"`
 	Home domain.GuestPath `json:"home"`
@@ -15,6 +16,7 @@ type runtimeUser struct {
 	UID  int              `json:"uid"`
 }
 
+// runtimeConfig is the flake input contract. Environment values never enter it.
 type runtimeConfig struct {
 	Name    domain.VMName       `json:"name"`
 	Arch    domain.Architecture `json:"arch"`
@@ -36,9 +38,11 @@ func writeRuntime(filename string, cfg config.Config, imports []string, uid int)
 		Ports:   cfg.Network.Ports,
 		Modules: imports,
 	}
+
 	data, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
 		return err
 	}
+
 	return filesystem.WriteFileAtomic(filename, append(data, '\n'), 0o600)
 }

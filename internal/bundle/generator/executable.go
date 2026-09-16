@@ -19,6 +19,7 @@ func inspectBinary(binary []byte, t target) (buildMetadata, error) {
 	if err != nil {
 		return buildMetadata{}, fmt.Errorf("read Go build info: %w", err)
 	}
+
 	return metadataFromBuildInfo(info), nil
 }
 
@@ -28,20 +29,24 @@ func validateBinary(binary []byte, machine elf.Machine) error {
 		return fmt.Errorf("read ELF: %w", err)
 	}
 
-	defer func() { _ = file.Close() }()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	if file.Class != elf.ELFCLASS64 || file.Data != elf.ELFDATA2LSB || file.Machine != machine {
 		return fmt.Errorf("ELF architecture: have %s/%s/%s, want ELFCLASS64/ELFDATA2LSB/%s", file.Class, file.Data, file.Machine, machine)
 	}
+
 	if file.Type != elf.ET_EXEC && file.Type != elf.ET_DYN {
 		return fmt.Errorf("unsupported ELF type: %s", file.Type)
 	}
 
 	for _, program := range file.Progs {
 		if program.Type == elf.PT_INTERP {
-			return errors.New("guest agent requires a dynamic loader (PT_INTERP); a static executable is required")
+			return ErrDynamicExecutable
 		}
 	}
+
 	return nil
 }
 
@@ -52,14 +57,17 @@ func gzipBinary(binary []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	writer.OS = 255
 
 	if _, err = writer.Write(binary); err != nil {
 		return nil, errors.Join(err, writer.Close())
 	}
+
 	if err = writer.Close(); err != nil {
 		return nil, err
 	}
+
 	return output.Bytes(), nil
 }
 

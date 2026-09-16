@@ -10,6 +10,7 @@ import (
 
 func listCommand(dependencies Dependencies) *cobra.Command {
 	var asJSON bool
+
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List VMs managed by Limanix.",
@@ -29,45 +30,11 @@ func listCommand(dependencies Dependencies) *cobra.Command {
 			if asJSON {
 				return writeJSON(cmd.OutOrStdout(), entries)
 			}
+
 			return writeInstances(cmd.OutOrStdout(), entries)
 		},
 	}
 	command.Flags().BoolVar(&asJSON, "json", false, "Print machine-readable JSON.")
-	return command
-}
-
-func powerCommand(operation string, dependencies Dependencies) *cobra.Command {
-	command := &cobra.Command{Use: operation + " NAME", Args: exactArgs(1)}
-	if operation == "start" {
-		command.Short = "Start an existing VM."
-	} else {
-		command.Short = "Stop a VM and preserve its disk and home."
-	}
-
-	command.RunE = func(cmd *cobra.Command, args []string) error {
-		name, err := domain.NewVMName(args[0])
-		if err != nil {
-			return err
-		}
-		manager, err := dependencies.Manager()
-		if err != nil {
-			return err
-		}
-
-		verb := "Started"
-		if operation == "start" {
-			err = manager.Start(cmd.Context(), name)
-		} else {
-			verb = "Stopped"
-			err = manager.Stop(cmd.Context(), name)
-		}
-		if err != nil {
-			return err
-		}
-
-		_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s %s.\n", verb, name)
-		return err
-	}
 	return command
 }
 
@@ -84,10 +51,12 @@ func deleteCommand(dependencies Dependencies) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			manager, err := dependencies.Manager()
 			if err != nil {
 				return err
 			}
+
 			home, err := manager.Delete(cmd.Context(), name, force, removeHome)
 			if err != nil {
 				return err
@@ -96,9 +65,11 @@ func deleteCommand(dependencies Dependencies) *cobra.Command {
 			if _, err = fmt.Fprintf(cmd.OutOrStdout(), "Deleted %s.\n", name); err != nil {
 				return err
 			}
+
 			if !removeHome {
 				_, err = fmt.Fprintf(cmd.OutOrStdout(), "Preserved managed home: %s\n", home)
 			}
+
 			return err
 		},
 	}
@@ -118,6 +89,7 @@ func shellCommand(dependencies Dependencies) *cobra.Command {
 			if err := cobra.MinimumNArgs(1)(cmd, args); err != nil {
 				return usageError(err)
 			}
+
 			return nil
 		},
 
@@ -140,13 +112,16 @@ func shellCommand(dependencies Dependencies) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			status, err := manager.Shell(cmd.Context(), name, command)
 			if err != nil {
 				return err
 			}
+
 			if status != 0 {
 				return &exitError{code: status}
 			}
+
 			return nil
 		},
 	}

@@ -2,4 +2,6 @@
 
 package lima
 
-func nativeVZAvailable() bool { return false }
+func nativeVZAvailable() bool {
+	return false
+}

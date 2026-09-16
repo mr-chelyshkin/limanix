@@ -1,8 +1,8 @@
-// Package config owns the versioned public TOML contract, defaults and documentation.
 package config
 
 import "github.com/mr-chelyshkin/limanix/internal/domain"
 
+// Resources specifies the guest architecture and compute capacity.
 type Resources struct {
 	Arch domain.Architecture `toml:"arch" json:"arch" doc:"Guest architecture."`
 	Disk domain.ByteSize     `toml:"disk" json:"disk" doc:"Guest system disk size in GiB."`
@@ -10,36 +10,44 @@ type Resources struct {
 	CPU  int                 `toml:"cpu" json:"cpu" doc:"Guest CPU count, a positive integer."`
 }
 
+// User configures the regular account created inside the guest.
 type User struct {
 	Name domain.Username  `toml:"name" json:"name" doc:"Regular guest username."`
 	Home domain.GuestPath `toml:"home" json:"home" doc:"Guest user's home directory."`
 	Sudo bool             `toml:"sudo" json:"sudo" doc:"Passwordless sudo inside the guest."`
 }
 
+// Home selects the host directory that owns persistent guest home directories.
 type Home struct {
 	Root string `toml:"root" json:"root" doc:"Host root for <root>/<name>-<id>. Limanix creates this directory on the Mac and mounts it at user.home with read-write access."`
 }
 
+// NixOS selects trusted modules included in the generated guest configuration.
 type NixOS struct {
 	Modules []domain.ModuleID `toml:"modules" json:"modules" doc:"Bundled module names (git, rust, neovim), or third-party:NAME for a module imported with limanix modules add."`
 }
 
+// Ports declares inbound guest firewall rules by transport protocol.
 type Ports struct {
 	TCP []int `toml:"tcp" json:"tcp" doc:"Inbound TCP ports in the guest firewall. Services listen on a guest network interface and are reached at <guest-ip>:<port> from the Mac."`
 	UDP []int `toml:"udp" json:"udp" doc:"Inbound UDP ports in the guest firewall."`
 }
 
+// Network configures connectivity and the guest firewall.
 type Network struct {
 	Mode  string `toml:"mode" json:"mode" doc:"Shared/NAT network. The Mac reaches the guest by its own IP address." choices:"shared"`
 	Ports Ports  `toml:"ports" json:"ports" doc:"Inbound guest firewall ports."`
 }
 
+// Mount maps a host directory to a checked guest destination.
 type Mount struct {
 	Mode   string           `toml:"mode" json:"mode" doc:"Mount access: rw or ro." choices:"rw,ro" default:"rw"`
 	Source string           `toml:"source" json:"source" doc:"Host directory to mount inside the guest." required:"true"`
 	Target domain.GuestPath `toml:"target" json:"target" doc:"Mount destination inside the guest." required:"true"`
 }
 
+// Config is the public TOML contract. Tags also provide the generated reference
+// and example configuration; defaults are constructed by Default.
 type Config struct {
 	SchemaVersion int                                `toml:"schema_version" json:"schema_version" doc:"Contract version, independent of the installed Limanix package version."`
 	Name          domain.VMName                      `toml:"name" json:"name" doc:"Sandbox name."`
@@ -57,15 +65,45 @@ func Default() Config {
 	return Config{
 		SchemaVersion: 1,
 		Name:          "example-box",
-		User:          User{Name: "dev", Home: "/home/dev", Sudo: true},
-		Resources:     Resources{Arch: domain.ARM64, Disk: domain.ByteSize(10 * domain.GiB), CPU: 4, Mem: domain.ByteSize(8 * domain.GiB)},
-		Home:          Home{Root: "~/.limanix"},
-		NixOS:         NixOS{Modules: []domain.ModuleID{"git"}},
-		Network:       Network{Mode: "shared", Ports: Ports{TCP: []int{8080}, UDP: []int{}}},
-		Env:           map[domain.EnvName]domain.EnvValue{"APP_ENV": "development", "APP_LOG_LEVEL": "debug"},
+		User: User{
+			Name: "dev",
+			Home: "/home/dev",
+			Sudo: true,
+		},
+		Resources: Resources{
+			Arch: domain.ARM64,
+			Disk: domain.ByteSize(10 * domain.GiB),
+			CPU:  4,
+			Mem:  domain.ByteSize(8 * domain.GiB),
+		},
+		Home: Home{
+			Root: "~/.limanix",
+		},
+		NixOS: NixOS{
+			Modules: []domain.ModuleID{"git"},
+		},
+		Network: Network{
+			Mode: "shared",
+			Ports: Ports{
+				TCP: []int{8080},
+				UDP: []int{},
+			},
+		},
+		Env: map[domain.EnvName]domain.EnvValue{
+			"APP_ENV":       "development",
+			"APP_LOG_LEVEL": "debug",
+		},
 		Mounts: []Mount{
-			{Mode: "rw", Source: "~/projects/my-project", Target: "/workspace"},
-			{Mode: "ro", Source: "~/.ssh/limanix", Target: "/mnt/git-keys"},
+			{
+				Mode:   "rw",
+				Source: "~/projects/my-project",
+				Target: "/workspace",
+			},
+			{
+				Mode:   "ro",
+				Source: "~/.ssh/limanix",
+				Target: "/mnt/git-keys",
+			},
 		},
 	}
 }

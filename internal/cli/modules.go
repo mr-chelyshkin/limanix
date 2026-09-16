@@ -1,9 +1,7 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -16,7 +14,7 @@ func modulesCommand(dependencies Dependencies) *cobra.Command {
 		Short: "Manage bundled and third-party NixOS modules.",
 
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return usageError(errors.New("a modules subcommand is required"))
+			return usageError(errMissingModuleCommand)
 		},
 	}
 	catalog.AddCommand(
@@ -49,17 +47,8 @@ func moduleListCommand(dependencies Dependencies) *cobra.Command {
 			if asJSON {
 				return writeJSON(cmd.OutOrStdout(), entries)
 			}
-			writer := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
-			for _, entry := range entries {
-				detail := entry.Description
-				if entry.Error != nil {
-					detail = "error: " + *entry.Error
-				}
-				if _, err := fmt.Fprintf(writer, "%s\t%s\n", entry.Name, detail); err != nil {
-					return err
-				}
-			}
-			return writer.Flush()
+
+			return writeModules(cmd.OutOrStdout(), entries)
 		},
 	}
 	command.Flags().BoolVar(&asJSON, "json", false, "Print machine-readable JSON.")
@@ -82,6 +71,7 @@ func moduleAddCommand(dependencies Dependencies) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			if err = registry.Add(cmd.Context(), name, args[1]); err != nil {
 				return err
 			}
@@ -108,6 +98,7 @@ func moduleRemoveCommand(dependencies Dependencies) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			if err = registry.Remove(cmd.Context(), name); err != nil {
 				return err
 			}

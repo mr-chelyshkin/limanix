@@ -16,43 +16,48 @@ import (
 
 const schemaVersion = 1
 
+// identityRecord persists immutable ownership separately from operation progress.
 type identityRecord struct {
 	SchemaVersion int `json:"schema_version"`
-	Identity
+	domain.Identity
 }
 
+// runtimeRecord is the mutable, versioned state of one VM operation.
 type runtimeRecord struct {
-	SchemaVersion int     `json:"schema_version"`
-	Status        Status  `json:"status"`
-	Generation    string  `json:"generation"`
-	Error         *string `json:"error"`
+	SchemaVersion int           `json:"schema_version"`
+	Status        domain.Status `json:"status"`
+	Generation    string        `json:"generation"`
+	Error         *string       `json:"error"`
 }
 
-func decodeIdentityRecord(record identityRecord, name domain.VMName) (Identity, error) {
+func decodeIdentityRecord(record identityRecord, name domain.VMName) (domain.Identity, error) {
 	if record.SchemaVersion != schemaVersion {
-		return Identity{}, errors.New("unsupported state schema")
+		return domain.Identity{}, ErrUnsupportedSchema
 	}
+
 	if record.Name != name {
-		return Identity{}, errors.New("identity name differs from its directory")
+		return domain.Identity{}, ErrIdentityName
 	}
-	return validatedIdentity(record.Identity)
+
+	return record.Normalized()
 }
 
 func validateRuntime(record runtimeRecord) error {
 	if record.SchemaVersion != schemaVersion {
-		return errors.New("unsupported state schema")
+		return ErrUnsupportedSchema
 	}
-	if !identifierPattern.MatchString(record.Generation) {
-		return errors.New("invalid generation")
+
+	if !domain.ValidIdentifier(record.Generation) {
+		return ErrInvalidGeneration
 	}
 
 	switch record.Status {
-	case Creating, Ready, Updating, Error, Deleting:
+	case domain.Creating, domain.Ready, domain.Updating, domain.Failed, domain.Deleting:
 		return nil
-	case Interrupted:
-		return errors.New("interrupted is a computed listing status")
+	case domain.Interrupted:
+		return ErrComputedStatus
 	default:
-		return errors.New("invalid lifecycle state")
+		return ErrInvalidStatus
 	}
 }
 
@@ -61,6 +66,7 @@ func writeRecord(path string, record any) error {
 	if err != nil {
 		return err
 	}
+
 	return filesystem.WriteFileAtomic(path, append(data, '\n'), 0o600)
 }
 
@@ -75,22 +81,25 @@ func readRecord(path string, record any) error {
 	if err = errors.Join(readErr, file.Close()); err != nil {
 		return err
 	}
+
 	if !utf8.Valid(data) {
-		return errors.New("record is not valid UTF-8")
+		return ErrRecordEncoding
 	}
 
 	var fields map[string]json.RawMessage
+
 	if err = json.Unmarshal(data, &fields); err != nil {
 		return err
 	}
 
 	expected := jsonFieldNames(reflect.TypeOf(record).Elem())
 	if len(fields) != len(expected) {
-		return errors.New("unexpected record fields")
+		return ErrRecordFields
 	}
+
 	for _, name := range expected {
 		if _, exists := fields[name]; !exists {
-			return errors.New("unexpected record fields")
+			return ErrRecordFields
 		}
 	}
 
@@ -101,13 +110,16 @@ func readRecord(path string, record any) error {
 
 func jsonFieldNames(model reflect.Type) []string {
 	var result []string
+
 	for index := range model.NumField() {
 		field := model.Field(index)
 		if field.Anonymous {
 			result = append(result, jsonFieldNames(field.Type)...)
 			continue
 		}
+
 		result = append(result, strings.Split(field.Tag.Get("json"), ",")[0])
 	}
+
 	return result
 }

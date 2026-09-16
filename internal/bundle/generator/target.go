@@ -7,6 +7,7 @@ const (
 	agentPackage   = limaModulePath + "/cmd/lima-guestagent"
 )
 
+// target maps compiler architecture settings to Lima's archive and ELF formats.
 type target struct {
 	goArch   string
 	variant  string
@@ -16,8 +17,18 @@ type target struct {
 
 func targets() []target {
 	return []target{
-		{goArch: "arm64", limaArch: "aarch64", machine: elf.EM_AARCH64, variant: "GOARM64=v8.0"},
-		{goArch: "amd64", limaArch: "x86_64", machine: elf.EM_X86_64, variant: "GOAMD64=v1"},
+		{
+			goArch:   "arm64",
+			limaArch: "aarch64",
+			machine:  elf.EM_AARCH64,
+			variant:  "GOARM64=v8.0",
+		},
+		{
+			goArch:   "amd64",
+			limaArch: "x86_64",
+			machine:  elf.EM_X86_64,
+			variant:  "GOAMD64=v1",
+		},
 	}
 }
 
