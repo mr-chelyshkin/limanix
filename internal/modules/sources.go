@@ -70,7 +70,7 @@ func (r *Registry) source(selected domain.ModuleID) (Source, error) {
 	}
 
 	source.Path = filepath.Join(r.directory(), string(id.Name()))
-	if err := ValidateDirectory(source.Path); err != nil {
+	if err = ValidateDirectory(source.Path); err != nil {
 		return Source{}, &Error{
 			ID:  id,
 			Err: err,

@@ -14,8 +14,6 @@ import (
 )
 
 // CopyTree copies a complete module, preserving relative imports and rejecting symlinks/special files.
-// The destination must not exist and cannot be inside the source directory.
-// Validation and copying share one traversal; a failed copy removes the destination.
 func CopyTree(source, destination string) (entry string, failure error) {
 	source, err := filesystem.RequireDirectory(source)
 	if err != nil {
@@ -27,11 +25,11 @@ func CopyTree(source, destination string) (entry string, failure error) {
 		return "", err
 	}
 
-	if err := ValidateDirectory(source); err != nil {
+	if err = ValidateDirectory(source); err != nil {
 		return "", err
 	}
 
-	if err := os.Mkdir(destination, 0o700); err != nil {
+	if err = os.Mkdir(destination, 0o700); err != nil {
 		return "", err
 	}
 
@@ -46,7 +44,7 @@ func CopyTree(source, destination string) (entry string, failure error) {
 		destination: destination,
 	}
 
-	if err := filepath.WalkDir(source, tree.copyEntry); err != nil {
+	if err = filepath.WalkDir(source, tree.copyEntry); err != nil {
 		return "", err
 	}
 
@@ -87,7 +85,6 @@ func copyDestination(source, destination string) (string, error) {
 }
 
 // ValidateDirectory requires a real module directory and a regular default.nix.
-// It does not follow symlinks at either path or inspect the rest of the tree.
 func ValidateDirectory(directory string) error {
 	info, err := os.Lstat(directory)
 	if err != nil {

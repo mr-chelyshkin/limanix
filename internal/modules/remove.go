@@ -22,7 +22,6 @@ func (r *Registry) Remove(ctx context.Context, name domain.ModuleName) error {
 		return err
 	}
 
-	// Detachment releases the registry lock before recursive removal begins.
 	return errors.Join(err, os.RemoveAll(staging))
 }
 

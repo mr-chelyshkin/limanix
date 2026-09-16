@@ -33,18 +33,17 @@ func (r *Registry) Add(ctx context.Context, name domain.ModuleName, source strin
 	}()
 
 	imported := filepath.Join(staging, "module")
-	if _, err := CopyTree(source, imported); err != nil {
+	if _, err = CopyTree(source, imported); err != nil {
 		return fmt.Errorf("cannot import module %q: %w", name, err)
 	}
 
-	if err := ctx.Err(); err != nil {
+	if err = ctx.Err(); err != nil {
 		return err
 	}
 
 	return r.commitImport(ctx, imported, destination)
 }
 
-// checkImportDestination checks absence under a shared lock before preparing an import.
 func (r *Registry) checkImportDestination(ctx context.Context, destination string) (failure error) {
 	lock, err := r.store.RegistryLock(ctx, true, state.RegistryLockTimeout)
 	if err != nil {
@@ -68,11 +67,11 @@ func (r *Registry) commitImport(ctx context.Context, imported, destination strin
 		failure = errors.Join(failure, lock.Close())
 	}()
 
-	if err := requireAbsent(destination); err != nil {
+	if err = requireAbsent(destination); err != nil {
 		return err
 	}
 
-	if err := os.Rename(imported, destination); err != nil {
+	if err = os.Rename(imported, destination); err != nil {
 		return fmt.Errorf("cannot commit module %q: %w", filepath.Base(destination), err)
 	}
 

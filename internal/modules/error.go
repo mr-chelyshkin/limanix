@@ -7,8 +7,6 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/domain"
 )
 
-// Module errors distinguish selection, registry conflicts, and unsafe source
-// trees. Error adds the module ID while preserving the cause for errors.Is.
 var (
 	ErrAlreadyExists     = errors.New("module already exists")
 	ErrNotInstalled      = errors.New("module is not installed")

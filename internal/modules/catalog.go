@@ -14,8 +14,6 @@ import (
 )
 
 // Info is a catalog row, including an error for a damaged imported module.
-// Name is the selectable module ID. Source is its kind (bundled or third-party),
-// not a filesystem path. Error describes this entry without suppressing others.
 type Info struct {
 	Name        string  `json:"name"`
 	Source      string  `json:"source"`
