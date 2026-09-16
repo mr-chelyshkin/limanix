@@ -24,7 +24,7 @@ func startCommand(dependencies Dependencies) *cobra.Command {
 				return err
 			}
 
-			if err := manager.Start(cmd.Context(), name); err != nil {
+			if err = manager.Start(cmd.Context(), name); err != nil {
 				return err
 			}
 
@@ -51,7 +51,7 @@ func stopCommand(dependencies Dependencies) *cobra.Command {
 				return err
 			}
 
-			if err := manager.Stop(cmd.Context(), name); err != nil {
+			if err = manager.Stop(cmd.Context(), name); err != nil {
 				return err
 			}
 

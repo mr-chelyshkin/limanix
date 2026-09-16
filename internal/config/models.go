@@ -46,8 +46,7 @@ type Mount struct {
 	Target domain.GuestPath `toml:"target" json:"target" doc:"Mount destination inside the guest." required:"true"`
 }
 
-// Config is the public TOML contract. Tags also provide the generated reference
-// and example configuration; defaults are constructed by Default.
+// Config is the public TOML contract.
 type Config struct {
 	SchemaVersion int                                `toml:"schema_version" json:"schema_version" doc:"Contract version, independent of the installed Limanix package version."`
 	Name          domain.VMName                      `toml:"name" json:"name" doc:"Sandbox name."`

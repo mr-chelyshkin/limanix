@@ -16,9 +16,9 @@ func Command(streams IO, dependencies Dependencies) *cobra.Command {
 		Use:           "limanix",
 		Short:         "Development sandboxes with Lima and NixOS.",
 		Version:       buildinfo.Version,
+		Args:          exactArgs(0),
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		Args:          exactArgs(0),
 
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()

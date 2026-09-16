@@ -41,7 +41,6 @@ func DecodeSocketVMNet(target SocketVMNetTarget, archive []byte) (payload Socket
 }
 
 // readSocketVMNet depends on upstream's /opt/socket_vmnet archive layout.
-// A release changing these members needs an adapter change, not just new Taskfile pins.
 func readSocketVMNet(reader *tar.Reader) (SocketVMNetPayload, error) {
 	var payload SocketVMNetPayload
 

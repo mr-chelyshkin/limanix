@@ -7,13 +7,9 @@ import (
 )
 
 // MinimumMacOSVersion is supplied by Taskfile's macos_version through linker -X.
-// The same value configures the native compiler, helper generator and tests.
-// There is no source default: VM preflight rejects an unconfigured build.
 var MinimumMacOSVersion string
 
 // MacOSVersion uses Mach-O's packed major/minor/patch representation.
-// Values returned by ParseMacOSVersion can be compared directly with each other
-// and with the minimum OS field in LC_BUILD_VERSION.
 type MacOSVersion uint32
 
 // MinimumMacOS validates the deployment target supplied when linking this binary.

@@ -14,7 +14,6 @@ import (
 	"strings"
 )
 
-// goToolchain pins the selected compiler executable and its sanitized environment.
 type goToolchain struct {
 	executable  string
 	root        string

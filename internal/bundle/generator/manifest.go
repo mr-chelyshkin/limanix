@@ -17,7 +17,6 @@ import (
 
 const manifestSchema = 2
 
-// artifact records the archive digest and the build metadata of its executable.
 type artifact struct {
 	Name       string        `json:"name"`
 	Arch       string        `json:"arch"`
@@ -26,7 +25,6 @@ type artifact struct {
 	Build      buildMetadata `json:"build"`
 }
 
-// manifest is the versioned record used to check reuse of every bundled target.
 type manifest struct {
 	SchemaVersion int        `json:"schema_version"`
 	Artifacts     []artifact `json:"artifacts"`

@@ -3,8 +3,6 @@ package domain
 // Architecture is a supported guest CPU architecture in Go notation.
 type Architecture string
 
-// Supported architectures use Go's spelling. LimaArch translates to Lima's
-// aarch64 and x86_64 names at the backend and archive boundaries.
 const (
 	ARM64 Architecture = "arm64"
 	AMD64 Architecture = "amd64"

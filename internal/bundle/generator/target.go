@@ -7,7 +7,6 @@ const (
 	agentPackage   = limaModulePath + "/cmd/lima-guestagent"
 )
 
-// target maps compiler architecture settings to Lima's archive and ELF formats.
 type target struct {
 	goArch   string
 	variant  string

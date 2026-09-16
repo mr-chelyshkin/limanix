@@ -33,7 +33,7 @@ func Load(filename string) (Config, error) {
 		return Config{}, err
 	}
 
-	if err := resolveHostPaths(&config, filepath.Dir(resolved)); err != nil {
+	if err = resolveHostPaths(&config, filepath.Dir(resolved)); err != nil {
 		return Config{}, err
 	}
 
@@ -56,7 +56,7 @@ func readConfig(filename string) ([]byte, error) {
 	}
 
 	data, readErr := io.ReadAll(file)
-	if err := errors.Join(readErr, file.Close()); err != nil {
+	if err = errors.Join(readErr, file.Close()); err != nil {
 		return nil, wrapField("config", "configuration file cannot be read", err)
 	}
 

@@ -14,26 +14,19 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/domain"
 )
 
-// SocketVMNetVersion is linked from Taskfile's socket_vmnet.version, together
-// with the archive pins below. It is build metadata, not a runtime setting.
+// SocketVMNetVersion is linked from Taskfile's socket_vmnet.version, together with the archive pins below.
 var SocketVMNetVersion string
 
-// socketVMNetArchives is linked from socket_vmnet.archives as JSON. Keeping the
-// version and both pins in Taskfile gives packaging and runtime identical inputs.
 var socketVMNetArchives string
 
-// Version labels become URL and filename components; arbitrary paths are not accepted.
 var socketVMNetVersionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$`)
 
-// socketVMNetArchive pins the exact compressed bytes for one host architecture.
 type socketVMNetArchive struct {
 	SHA256 string `json:"sha256"`
 	Size   int64  `json:"size"`
 }
 
 // SocketVMNetTargets validates the linked release metadata and derives archive names.
-// Upstream calls the Intel archive x86_64 and the Apple Silicon archive arm64;
-// these are packaging identifiers, independent of Lima's guest architecture names.
 func SocketVMNetTargets() ([]SocketVMNetTarget, error) {
 	if !socketVMNetVersionPattern.MatchString(SocketVMNetVersion) {
 		return nil, fmt.Errorf("%w: version %q", ErrVMNetRelease, SocketVMNetVersion)
@@ -56,7 +49,7 @@ func SocketVMNetTargets() ([]SocketVMNetTarget, error) {
 		{domain.AMD64, "x86_64"},
 	} {
 		pin := archives[host.architecture]
-		if err := pin.validate(); err != nil {
+		if err = pin.validate(); err != nil {
 			return nil, fmt.Errorf("%s: %w", host.architecture, err)
 		}
 

@@ -9,6 +9,17 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/domain"
 )
 
+// RenderReference returns Markdown field tables generated from types, tags and defaults.
+func RenderReference() (string, error) {
+	var output strings.Builder
+
+	if err := referenceModel(&output, reflect.ValueOf(Default()), ""); err != nil {
+		return "", err
+	}
+
+	return output.String(), nil
+}
+
 func typeName(item reflect.StructField) string {
 	if item.Type == reflect.TypeFor[domain.Architecture]() {
 		var (
@@ -71,17 +82,6 @@ func markdownCode(value string) string {
 	return "<code>" + value + "</code>"
 }
 
-// RenderReference returns Markdown field tables generated from types, tags and defaults.
-func RenderReference() (string, error) {
-	var output strings.Builder
-
-	if err := referenceModel(&output, reflect.ValueOf(Default()), ""); err != nil {
-		return "", err
-	}
-
-	return output.String(), nil
-}
-
 func referenceModel(output *strings.Builder, model reflect.Value, prefix string) error {
 	if prefix == "" {
 		output.WriteString("## Top-level fields\n\n")
@@ -97,7 +97,6 @@ func referenceModel(output *strings.Builder, model reflect.Value, prefix string)
 			value = model.Field(index)
 		)
 
-		// A table array always has its own field reference, even with no default entries.
 		if value.Kind() == reflect.Struct || value.Kind() == reflect.Map || isTableArray(value) {
 			continue
 		}

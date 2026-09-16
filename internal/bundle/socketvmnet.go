@@ -7,7 +7,6 @@ import (
 )
 
 // SocketVMNetTarget identifies an immutable upstream release archive.
-// Architecture is the Mac's architecture, not the guest's architecture.
 type SocketVMNetTarget struct {
 	Architecture domain.Architecture
 	Filename     string
@@ -16,14 +15,12 @@ type SocketVMNetTarget struct {
 }
 
 // SocketVMNetPayload contains the executable and its redistribution license.
-// Only the privileged installer writes these bytes to their final host paths.
 type SocketVMNetPayload struct {
 	Executable []byte
 	License    []byte
 }
 
 // SocketVMNet verifies the embedded release and selects its native host executable.
-// It does not extract files, run the helper, or perform network requests.
 func SocketVMNet(architecture domain.Architecture) (SocketVMNetPayload, error) {
 	targets, err := SocketVMNetTargets()
 	if err != nil {

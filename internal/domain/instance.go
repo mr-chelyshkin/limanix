@@ -35,10 +35,6 @@ func (s Status) InFlight() bool {
 }
 
 // Instance pairs immutable VM ownership with the current operation record.
-// Persistence validates ownership separately from mutable lifecycle fields.
-// Generation identifies prepared inputs, not the VM: an update replaces it
-// while preserving Identity.ID. Error holds a safe recovery message or nil,
-// never raw guest command output.
 type Instance struct {
 	Identity   Identity
 	Status     Status

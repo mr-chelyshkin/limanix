@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// buildPlan records the expected source, compiler and settings for one target.
 type buildPlan struct {
 	target target
 	flags  []string

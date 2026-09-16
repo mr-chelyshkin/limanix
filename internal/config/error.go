@@ -8,8 +8,6 @@ import (
 )
 
 // Error identifies the invalid field without exposing its value.
-// Cause is available to callers through errors.Is and errors.As, but is not
-// included in the public diagnostic.
 type Error struct {
 	Field   string
 	Message string

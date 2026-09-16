@@ -49,8 +49,6 @@ func configureLogging(command string, streams IO) {
 	}
 }
 
-// commandContext leaves host-agent shutdown to its runtime. Interactive SSH owns
-// foreground SIGINT; the parent CLI handles only SIGTERM for that command.
 func commandContext(ctx context.Context, command string) (context.Context, context.CancelFunc) {
 	switch command {
 	case "hostagent":

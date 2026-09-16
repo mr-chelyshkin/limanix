@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-// moduleIdentity identifies the effective module source, including replacements.
 type moduleIdentity struct {
 	Path    string          `json:"path"`
 	Version string          `json:"version"`
@@ -17,7 +16,6 @@ type moduleIdentity struct {
 	Replace *moduleIdentity `json:"replace,omitempty"`
 }
 
-// buildMetadata is normalized from Go's executable build information.
 type buildMetadata struct {
 	Package      string            `json:"package"`
 	GoVersion    string            `json:"go_version"`

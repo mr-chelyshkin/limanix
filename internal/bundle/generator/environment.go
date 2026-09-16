@@ -5,8 +5,6 @@ import (
 	"strings"
 )
 
-// buildEnvironment retains module/cache access settings but removes inherited
-// compiler switches. Empty GOFLAGS and GOEXPERIMENT explicitly disable overrides.
 func buildEnvironment(inherited []string) []string {
 	env := make([]string, 0, len(inherited))
 

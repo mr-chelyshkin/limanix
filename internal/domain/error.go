@@ -2,8 +2,6 @@ package domain
 
 import "errors"
 
-// Validation errors identify rejected input without including its value.
-// Callers may add a field name while retaining these causes with errors.Is.
 var (
 	ErrInvalidUTF8         = errors.New("expected UTF-8 text")
 	ErrNULCharacter        = errors.New("must not contain NUL characters")

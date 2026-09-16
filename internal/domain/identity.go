@@ -9,13 +9,10 @@ import (
 // IDLength is the number of hexadecimal characters in identity and generation IDs.
 const IDLength = 12
 
-// Identity defines a VM and its exact managed host home. Persistence rejects
-// changes to a saved identity, including CreatedAt and the allocation paths.
-//
-// Name is the user-facing VM name; ID distinguishes successive allocations
-// under that name. Username and UserHome describe the development user inside
-// the guest. HomeRoot and Home are absolute host paths, with Home derived as
-// HomeRoot/<name>-<id>. LimaName derives the corresponding backend name.
+var identifierPattern = regexp.MustCompile(fmt.Sprintf(`^[a-f0-9]{%d}$`, IDLength))
+
+// Identity defines a VM and its exact managed host home.
+// Persistence rejects changes to a saved identity, including CreatedAt and the allocation paths.
 type Identity struct {
 	UserHome  GuestPath    `json:"user_home"`
 	Username  Username     `json:"username"`
@@ -31,8 +28,6 @@ type Identity struct {
 func (i Identity) LimaName() string {
 	return "limanix-" + string(i.Name) + "-" + i.ID
 }
-
-var identifierPattern = regexp.MustCompile(fmt.Sprintf(`^[a-f0-9]{%d}$`, IDLength))
 
 // HomePath validates the allocation fields and derives root/<name>-<id>.
 func HomePath(root string, name VMName, identifier string) (string, error) {

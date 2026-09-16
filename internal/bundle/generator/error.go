@@ -2,9 +2,6 @@ package generator
 
 import "errors"
 
-// Generation errors identify toolchain, source, executable, and manifest failures.
-// During the reuse check, a mismatch triggers rebuilding; the same validation
-// failure in a newly built executable aborts generation.
 var (
 	ErrInvalidToolchain  = errors.New("go compiler returned an invalid GOROOT or GOVERSION")
 	ErrUnversionedLima   = errors.New("generation requires an unreplaced, versioned Lima module")

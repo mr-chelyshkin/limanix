@@ -11,7 +11,6 @@ import (
 	"strings"
 )
 
-// moduleInfo is the dependency identity returned by go list, including replacements.
 type moduleInfo struct {
 	Path    string
 	Version string
@@ -56,7 +55,6 @@ func (tool *goToolchain) limaVersion(ctx context.Context) (string, error) {
 	return module.Version, nil
 }
 
-// packageGraph is the agent's dependency graph, not the application's full go.mod.
 type packageGraph struct {
 	modules        map[string]moduleIdentity
 	defaultGODEBUG string

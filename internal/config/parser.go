@@ -50,8 +50,6 @@ func Parse(data []byte) (Config, error) {
 	return result, nil
 }
 
-// applyEntryDefaults consumes the same shape validated by checkShape and decoded by
-// Parse. Table-array indexes refer to replacement slices produced by the decoder.
 func applyEntryDefaults(model reflect.Value, supplied map[string]any) {
 	for index := range model.NumField() {
 		var (

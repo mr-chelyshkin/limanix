@@ -7,8 +7,6 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/buildinfo"
 )
 
-// These are Mach-O format identifiers, not dependency versions. Deployment
-// versions come from LC_BUILD_VERSION and Taskfile's macos_version instead.
 const (
 	machoBuildVersion  = 0x32
 	machoPlatformMacOS = 1

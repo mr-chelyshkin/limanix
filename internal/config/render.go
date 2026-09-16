@@ -62,7 +62,6 @@ func renderModel(output *strings.Builder, model reflect.Value, prefix string) er
 			value = model.Field(index)
 		)
 
-		// Empty table arrays are scalar assignments (mounts = []), not [[mounts]] sections.
 		if value.Kind() == reflect.Struct || value.Kind() == reflect.Map || (isTableArray(value) && value.Len() > 0) {
 			continue
 		}

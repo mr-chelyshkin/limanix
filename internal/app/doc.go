@@ -13,8 +13,7 @@
 //	                           │  └→ lima.Client + guest.Guest
 //	                           └→ modules.Registry
 //
-// - [New] retains command streams.
-// State-path resolution is deferred until a service is requested and its result is shared by that Services instance.
+// - [New] retains command streams. State-path resolution is deferred until a service is requested and its result is shared by that Services instance.
 // - [Services.Manager] checks the host architecture and wires the guest-agent cache into Lima.
 // - [Services.Registry] does not initialize a Lima client. Help, version output, and generated CLI references need neither service.
 package app
