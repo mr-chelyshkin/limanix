@@ -52,6 +52,7 @@ func DefaultRoot() (string, error) {
 	if override := os.Getenv("LIMANIX_HOME"); override != "" {
 		return filesystem.Resolve(override)
 	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
@@ -93,6 +94,7 @@ func (s *Store) Initialize() error {
 	if err := os.MkdirAll(s.root, 0o700); err != nil {
 		return fmt.Errorf("initialize state at %s: %w", s.root, err)
 	}
+
 	for _, relative := range []string{"instances", "modules", "homes", "locks", "locks/instances"} {
 		directory := filepath.Join(s.root, relative)
 		if err := filesystem.CheckDirectory(directory); err != nil {
@@ -110,10 +112,12 @@ func (s *Store) InstanceDir(name domain.VMName) (string, error) {
 	if _, err := domain.NewVMName(string(name)); err != nil {
 		return "", err
 	}
+
 	parent := filepath.Join(s.root, "instances")
 	if err := filesystem.CheckDirectory(parent); err != nil {
 		return "", err
 	}
+
 	directory := filepath.Join(parent, string(name))
 	if err := filesystem.CheckDirectory(directory); err != nil {
 		return "", err
@@ -122,33 +126,35 @@ func (s *Store) InstanceDir(name domain.VMName) (string, error) {
 }
 
 // Save writes mutable state and creates an immutable identity if not yet present.
-// Callers serialize writes with InstanceLock.
 func (s *Store) Save(instance Instance) error {
 	identity, err := validatedIdentity(instance.Identity)
 	if err != nil {
 		return fmt.Errorf("save VM identity: %w", err)
 	}
+
 	record := runtimeRecord{
 		SchemaVersion: schemaVersion,
 		Status:        instance.Status,
 		Generation:    instance.Generation,
 		Error:         instance.Error,
 	}
-	if err := validateRuntime(record); err != nil {
+	if err = validateRuntime(record); err != nil {
 		return fmt.Errorf("save VM record: %w", err)
 	}
-	if err := s.Initialize(); err != nil {
+	if err = s.Initialize(); err != nil {
 		return err
 	}
+
 	directory, err := s.InstanceDir(identity.Name)
 	if err != nil {
 		return err
 	}
-	if err := os.Mkdir(directory, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
+	if err = os.Mkdir(directory, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
 		return err
 	}
+
 	identityPath := filepath.Join(directory, "identity.json")
-	if _, err := os.Lstat(identityPath); err == nil {
+	if _, err = os.Lstat(identityPath); err == nil {
 		saved, err := s.LoadIdentity(identity.Name)
 		if err != nil {
 			return err
@@ -157,7 +163,7 @@ func (s *Store) Save(instance Instance) error {
 			return fmt.Errorf("VM %q identity cannot be changed", identity.Name)
 		}
 	} else if errors.Is(err, fs.ErrNotExist) {
-		if err := writeRecord(identityPath, identityRecord{SchemaVersion: schemaVersion, Identity: identity}); err != nil {
+		if err = writeRecord(identityPath, identityRecord{SchemaVersion: schemaVersion, Identity: identity}); err != nil {
 			return err
 		}
 	} else {
@@ -172,8 +178,9 @@ func (s *Store) LoadIdentity(name domain.VMName) (Identity, error) {
 	if err != nil {
 		return Identity{}, err
 	}
+
 	var record identityRecord
-	if err := readRecord(filepath.Join(directory, "identity.json"), &record); err != nil {
+	if err = readRecord(filepath.Join(directory, "identity.json"), &record); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return Identity{}, fmt.Errorf("VM %q has no managed identity: %w", name, err)
 		}
@@ -200,11 +207,12 @@ func (s *Store) loadInstance(identity Identity) (Instance, error) {
 	if err != nil {
 		return Instance{}, err
 	}
+
 	var record runtimeRecord
-	if err := readRecord(filepath.Join(directory, "instance.json"), &record); err != nil {
+	if err = readRecord(filepath.Join(directory, "instance.json"), &record); err != nil {
 		return Instance{}, fmt.Errorf("cannot read VM record %q: %w", identity.Name, err)
 	}
-	if err := validateRuntime(record); err != nil {
+	if err = validateRuntime(record); err != nil {
 		return Instance{}, fmt.Errorf("cannot read VM record %q: %w", identity.Name, err)
 	}
 	return Instance{
@@ -218,9 +226,11 @@ func (s *Store) loadInstance(identity Identity) (Instance, error) {
 // FetchAll lists healthy and damaged records, detecting abandoned operations under a shared lock.
 func (s *Store) FetchAll() ([]Entry, error) {
 	directory := filepath.Join(s.root, "instances")
+
 	if err := filesystem.CheckDirectory(directory); err != nil {
 		return nil, err
 	}
+
 	paths, err := os.ReadDir(directory)
 	if errors.Is(err, fs.ErrNotExist) {
 		return []Entry{}, nil
@@ -228,6 +238,7 @@ func (s *Store) FetchAll() ([]Entry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot list VM records: %w", err)
 	}
+
 	entries := make([]Entry, 0, len(paths))
 	for _, path := range paths {
 		if !path.IsDir() && path.Type()&fs.ModeSymlink == 0 {
@@ -247,15 +258,18 @@ func (s *Store) FetchAll() ([]Entry, error) {
 // loadEntry preserves independently readable ownership when runtime state is damaged.
 func (s *Store) loadEntry(name domain.VMName) (Entry, error) {
 	entry := Entry{Name: string(name)}
+
 	identity, err := s.LoadIdentity(name)
 	if err != nil {
 		return entry, err
 	}
+
 	entry.Identity = &identity
 	instance, err := s.loadInstance(identity)
 	if err != nil {
 		return entry, err
 	}
+
 	entry.Instance = &instance
 	if !instance.Status.inFlight() {
 		return entry, nil
@@ -263,8 +277,6 @@ func (s *Store) loadEntry(name domain.VMName) (Entry, error) {
 	return s.refreshInterruptedEntry(name, entry)
 }
 
-// refreshInterruptedEntry rechecks both records under a shared VM lock. An active
-// writer keeps its persisted status; only an abandoned operation is interrupted.
 func (s *Store) refreshInterruptedEntry(name domain.VMName, entry Entry) (result Entry, err error) {
 	lock, err := s.vmLock(context.Background(), name, true)
 	if errors.Is(err, ErrLockBusy) {
@@ -273,12 +285,15 @@ func (s *Store) refreshInterruptedEntry(name domain.VMName, entry Entry) (result
 	if err != nil {
 		return entry, err
 	}
+
 	defer func() { err = errors.Join(err, lock.Close()) }()
+
 	entry.Identity = nil
 	identity, err := s.LoadIdentity(name)
 	if err != nil {
 		return entry, err
 	}
+
 	entry.Identity = &identity
 	instance, err := s.loadInstance(identity)
 	if err != nil {

@@ -45,6 +45,7 @@ func validateRuntime(record runtimeRecord) error {
 	if !identifierPattern.MatchString(record.Generation) {
 		return errors.New("invalid generation")
 	}
+
 	switch record.Status {
 	case Creating, Ready, Updating, Error, Deleting:
 		return nil
@@ -69,17 +70,20 @@ func readRecord(path string, record any) error {
 	if err != nil {
 		return err
 	}
+
 	data, readErr := io.ReadAll(file)
-	if err := errors.Join(readErr, file.Close()); err != nil {
+	if err = errors.Join(readErr, file.Close()); err != nil {
 		return err
 	}
 	if !utf8.Valid(data) {
 		return errors.New("record is not valid UTF-8")
 	}
+
 	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(data, &fields); err != nil {
+	if err = json.Unmarshal(data, &fields); err != nil {
 		return err
 	}
+
 	expected := jsonFieldNames(reflect.TypeOf(record).Elem())
 	if len(fields) != len(expected) {
 		return errors.New("unexpected record fields")
@@ -89,6 +93,7 @@ func readRecord(path string, record any) error {
 			return errors.New("unexpected record fields")
 		}
 	}
+
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	return decoder.Decode(record)

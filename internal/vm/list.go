@@ -12,6 +12,7 @@ func (m *Manager) FetchAll(ctx context.Context) ([]Info, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	backendInstances := make(map[string]lima.Instance)
 	for _, entry := range entries {
 		if entry.Identity != nil {
@@ -25,6 +26,7 @@ func (m *Manager) FetchAll(ctx context.Context) ([]Info, error) {
 			break
 		}
 	}
+	
 	result := make([]Info, 0, len(entries))
 	for _, entry := range entries {
 		info := Info{Name: entry.Name, Error: entry.Error}

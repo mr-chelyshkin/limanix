@@ -16,15 +16,17 @@ func (s *Store) PreserveHome(identity Identity) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := s.Initialize(); err != nil {
+	if err = s.Initialize(); err != nil {
 		return "", err
 	}
+
 	destination, err := s.preservedHomePath(identity)
 	if err != nil {
 		return "", err
 	}
+
 	var saved identityRecord
-	if err := readRecord(destination, &saved); err == nil {
+	if err = readRecord(destination, &saved); err == nil {
 		ownership, err := decodeIdentityRecord(saved, identity.Name)
 		if err != nil {
 			return "", err
@@ -33,7 +35,7 @@ func (s *Store) PreserveHome(identity Identity) (string, error) {
 			return "", fmt.Errorf("preserved home %q ownership cannot be changed", filepath.Base(destination))
 		}
 	} else if errors.Is(err, fs.ErrNotExist) {
-		if err := writeRecord(destination, identityRecord{SchemaVersion: schemaVersion, Identity: identity}); err != nil {
+		if err = writeRecord(destination, identityRecord{SchemaVersion: schemaVersion, Identity: identity}); err != nil {
 			return "", err
 		}
 	} else {
@@ -48,15 +50,17 @@ func (s *Store) ForgetHome(identity Identity) error {
 	if err != nil {
 		return err
 	}
+
 	destination, err := s.preservedHomePath(identity)
 	if err != nil {
 		return err
 	}
-	if err := filesystem.CheckDirectory(filepath.Dir(destination)); err != nil {
+	if err = filesystem.CheckDirectory(filepath.Dir(destination)); err != nil {
 		return err
 	}
+
 	var saved identityRecord
-	if err := readRecord(destination, &saved); err != nil {
+	if err = readRecord(destination, &saved); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}

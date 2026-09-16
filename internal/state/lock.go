@@ -62,33 +62,38 @@ func (s *Store) lock(ctx context.Context, path string, shared bool, timeout time
 	if err := s.Initialize(); err != nil {
 		return nil, err
 	}
+
 	file, err := filesystem.OpenRegular(path, unix.O_CREAT|unix.O_RDWR, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open state lock %s: %w", path, err)
 	}
-	if err := file.Chmod(0o600); err != nil {
+	if err = file.Chmod(0o600); err != nil {
 		return nil, errors.Join(err, file.Close())
 	}
+
 	operation := unix.LOCK_EX
 	if shared {
 		operation = unix.LOCK_SH
 	}
 	deadline := time.Now().Add(timeout)
 	for {
-		if err := ctx.Err(); err != nil {
+		if err = ctx.Err(); err != nil {
 			return nil, errors.Join(err, file.Close())
 		}
-		err := unix.Flock(int(file.Fd()), operation|unix.LOCK_NB)
+
+		err = unix.Flock(int(file.Fd()), operation|unix.LOCK_NB)
 		if err == nil {
 			return &Lock{file: file}, nil
 		}
 		if !errors.Is(err, unix.EWOULDBLOCK) && !errors.Is(err, unix.EAGAIN) {
 			return nil, errors.Join(fmt.Errorf("cannot acquire state lock %s: %w", path, err), file.Close())
 		}
+
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
 			return nil, errors.Join(fmt.Errorf("%s: %w", busy, ErrLockBusy), file.Close())
 		}
+
 		timer := time.NewTimer(min(50*time.Millisecond, remaining))
 		select {
 		case <-ctx.Done():

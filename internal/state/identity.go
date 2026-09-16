@@ -71,15 +71,17 @@ func validatedIdentity(i Identity) (Identity, error) {
 	if _, err := domain.NewUsername(string(i.Username)); err != nil {
 		return Identity{}, err
 	}
+
 	userHome, err := domain.NewGuestPath(string(i.UserHome))
 	if err != nil {
 		return Identity{}, err
 	}
+
 	i.UserHome = userHome
 	if domain.ValidateText(i.CreatedAt, false) != nil {
 		return Identity{}, errors.New("invalid created_at")
 	}
-	if _, _, err := i.HomePaths(); err != nil {
+	if _, _, err = i.HomePaths(); err != nil {
 		return Identity{}, err
 	}
 	return i, nil

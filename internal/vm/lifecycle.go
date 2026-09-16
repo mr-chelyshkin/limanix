@@ -24,12 +24,14 @@ func (m *Manager) lifecycle(ctx context.Context, name domain.VMName, operation f
 	if err != nil {
 		return err
 	}
+
 	defer func() { err = errors.Join(err, lock.Close()) }()
+
 	identity, err := m.store.LoadIdentity(name)
 	if err != nil {
 		return err
 	}
-	if _, err := m.requireLima(ctx, identity); err != nil {
+	if _, err = m.requireLima(ctx, identity); err != nil {
 		return err
 	}
 	return operation(ctx, identity.LimaName())
@@ -41,6 +43,7 @@ func (m *Manager) Shell(ctx context.Context, name domain.VMName, command []strin
 	if err != nil {
 		return 1, err
 	}
+
 	actual, err := m.requireLima(ctx, identity)
 	if err != nil {
 		return 1, err
