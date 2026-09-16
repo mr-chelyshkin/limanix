@@ -35,7 +35,6 @@ func (lock *Lock) Close() error {
 }
 
 // InstanceLock immediately rejects another operation on the same VM.
-// On failure it returns a nil interface, never an interface holding a nil *Lock.
 func (s *Store) InstanceLock(ctx context.Context, name domain.VMName) (io.Closer, error) {
 	lock, err := s.vmLock(ctx, name, false)
 	if err != nil {
@@ -94,7 +93,7 @@ func (s *Store) lock(ctx context.Context, path string, shared bool, timeout time
 		}
 	}()
 
-	if err := file.Chmod(0o600); err != nil {
+	if err = file.Chmod(0o600); err != nil {
 		return nil, err
 	}
 
@@ -139,7 +138,7 @@ func acquireLock(ctx context.Context, file *os.File, shared bool, timeout time.D
 			return ErrLockBusy
 		}
 
-		if err := waitForLock(ctx, min(50*time.Millisecond, remaining)); err != nil {
+		if err = waitForLock(ctx, min(50*time.Millisecond, remaining)); err != nil {
 			return err
 		}
 	}

@@ -40,7 +40,7 @@ func (s *Store) Save(instance domain.Instance) error {
 		return err
 	}
 
-	if err := s.ensureIdentity(directory, identity); err != nil {
+	if err = s.ensureIdentity(directory, identity); err != nil {
 		return err
 	}
 

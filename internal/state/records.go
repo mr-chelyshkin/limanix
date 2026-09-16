@@ -16,17 +16,15 @@ import (
 
 const schemaVersion = 1
 
-// identityRecord persists immutable ownership separately from operation progress.
 type identityRecord struct {
 	SchemaVersion int `json:"schema_version"`
 	domain.Identity
 }
 
-// runtimeRecord is the mutable, versioned state of one VM operation.
 type runtimeRecord struct {
 	SchemaVersion int           `json:"schema_version"`
-	Status        domain.Status `json:"status"`
 	Generation    string        `json:"generation"`
+	Status        domain.Status `json:"status"`
 	Error         *string       `json:"error"`
 }
 
@@ -70,7 +68,6 @@ func writeRecord(path string, record any) error {
 	return filesystem.WriteFileAtomic(path, append(data, '\n'), 0o600)
 }
 
-// readRecord requires all model fields, refuses extras, and never follows final symlinks.
 func readRecord(path string, record any) error {
 	file, err := filesystem.OpenRegular(path, unix.O_RDONLY, 0)
 	if err != nil {

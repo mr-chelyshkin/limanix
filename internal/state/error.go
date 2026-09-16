@@ -2,7 +2,6 @@ package state
 
 import "errors"
 
-// Persistence errors distinguish invalid records, ownership conflicts and contention.
 var (
 	ErrLockBusy           = errors.New("state lock is held by another operation")
 	ErrInvalidLockTimeout = errors.New("registry lock timeout must be nonnegative")

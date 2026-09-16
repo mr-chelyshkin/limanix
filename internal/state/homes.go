@@ -18,7 +18,7 @@ func (s *Store) PreserveHome(identity domain.Identity) (string, error) {
 		return "", err
 	}
 
-	if err := s.Initialize(); err != nil {
+	if err = s.Initialize(); err != nil {
 		return "", err
 	}
 
@@ -27,7 +27,7 @@ func (s *Store) PreserveHome(identity domain.Identity) (string, error) {
 		return "", err
 	}
 
-	if err := preserveIdentity(destination, identity); err != nil {
+	if err = preserveIdentity(destination, identity); err != nil {
 		return "", err
 	}
 
@@ -67,7 +67,7 @@ func (s *Store) ForgetHome(identity domain.Identity) error {
 		return err
 	}
 
-	if err := filesystem.CheckDirectory(filepath.Dir(destination)); err != nil {
+	if err = filesystem.CheckDirectory(filepath.Dir(destination)); err != nil {
 		return err
 	}
 

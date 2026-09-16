@@ -13,10 +13,6 @@ import (
 )
 
 // Entry retains an independently readable identity when a runtime record is damaged.
-// Name comes from the state directory. Instance is nil when the operation record
-// cannot be read; Identity may still be available for backend lookup and recovery.
-// Error describes a listing-time read failure, distinct from Instance.Error's
-// persisted recovery message.
 type Entry struct {
 	Instance *domain.Instance
 	Identity *domain.Identity
@@ -51,8 +47,7 @@ func (s *Store) FetchAll() ([]Entry, error) {
 		entry, err := s.loadEntry(domain.VMName(path.Name()))
 		if err != nil {
 			entry.Instance = nil
-			message := err.Error()
-			entry.Error = &message
+			entry.Error = new(err.Error())
 		}
 
 		entries = append(entries, entry)
@@ -98,8 +93,6 @@ func (s *Store) refreshInterruptedEntry(name domain.VMName, entry Entry) (result
 		err = errors.Join(err, lock.Close())
 	}()
 
-	// A completed delete may have removed ownership since the initial read.
-	// Retain only identity verified under this lock, never a stale pre-delete value.
 	entry.Identity = nil
 	identity, err := s.LoadIdentity(name)
 	if err != nil {
