@@ -54,8 +54,10 @@ Run the same tasks locally as in CI:
 task ci/fmt ci/lint ci/test ci/vuln
 ```
 
-The `ci/test` task runs `cmd/bundle-guestagent` in the Go container before compiling tests.
-The generator verifies existing manifests, archive hashes, and ELF architectures,
+The `ci/test` task runs `cmd/bundle-socketvmnet` and `cmd/bundle-guestagent` in the
+Go container before compiling tests. The network-helper generator downloads pinned
+upstream archives and verifies SHA-256, Mach-O architecture, and library dependencies.
+The guest-agent generator verifies existing manifests, archive hashes, and ELF architectures,
 and rebuilds the assets when validation fails. Generated archives and their
 manifest are ignored build artifacts.
 
@@ -66,15 +68,25 @@ task --yes ci/build
 ```
 
 `ci/build` chooses both macOS architectures, binary names, and release flags in
-the project's Taskfile. It generates or verifies guest agents through the host
+the project's Taskfile. It prepares the pinned helper archives and generates or
+verifies guest agents through the host
 Go toolchain, builds with CGO enabled, and signs and
 verifies both binaries with `.github/assets/vz.entitlements`. The deployment
-target is macOS 13.0 and is checked in each binary's Mach-O metadata. It does not
+target is macOS 26.0 and is checked in each binary's Mach-O metadata. It does not
 need Docker. `RELEASE_TAG` sets the embedded release version; an unset value keeps
 the development version.
 
+`internal/buildinfo.MinimumMacOSMajor`, the native deployment target, and the
+documented host minimum describe the same baseline. Helper packaging rejects
+archives whose Mach-O metadata requires a newer macOS release. Both helper
+architectures use pinned upstream archives; no local C compilation is required.
+When updating Lima or socket_vmnet, recheck this baseline and the real QEMU
+lifecycle before changing the pinned versions. A new upstream release does not
+automatically change the project's minimum macOS version.
+
 Vulnerability checks and tests run separately through `ci/vuln` and `ci/test`;
-`ci/build` does not invoke them.
+`ci/build` does not invoke them. `ci/vuln` scans both the local Go packages and
+Lima's Linux guest-agent entry point, which is compiled into the embedded bundle.
 
 The PR and tag workflows are defined in this repository. Go and documentation
 checks run on Ubuntu through `mr-chelyshkin/actions/invoke-taskfile@v1`.

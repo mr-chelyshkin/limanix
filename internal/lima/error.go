@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+
+	"github.com/mr-chelyshkin/limanix/internal/buildinfo"
 )
 
 // Adapter errors distinguish host capability, ownership, metadata, and launch
@@ -26,9 +28,8 @@ var (
 	ErrMacOSRequired            = errors.New("limanix VM operations require macOS")
 	ErrMissingSSH               = errors.New("make the system SSH client available in PATH")
 	ErrMissingVZ                = errors.New("this Limanix build does not include the native macOS VZ driver")
-	ErrOldMacOS                 = errors.New("VZ shared networking requires macOS 13 or newer")
-	ErrRosetta                  = errors.New("this Limanix binary is running under Rosetta on Apple Silicon; use the darwin-arm64 binary for VM operations")
-	ErrMissingVMNet             = errors.New("QEMU shared networking requires socket_vmnet; complete https://lima-vm.io/docs/config/network/vmnet/#socket_vmnet")
+	ErrOldMacOS                 = fmt.Errorf("limanix requires macOS %d or newer", buildinfo.MinimumMacOSMajor)
+	ErrRosetta                  = errors.New("this Limanix binary is running under Rosetta on Apple Silicon; use limanix-arm64 for VM operations")
 )
 
 // Error identifies an operation without including guest command arguments.

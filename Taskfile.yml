@@ -14,7 +14,7 @@ tasks:
     internal: true
     vars:
       binary: 'bin/limanix-{{.TARGET_ARCH}}'
-      macos_min: '13.0'
+      macos_min: '26.0'
     env:
       CGO_CFLAGS: '-mmacosx-version-min={{.macos_min}}'
       CGO_LDFLAGS: '-mmacosx-version-min={{.macos_min}}'
@@ -44,9 +44,11 @@ tasks:
       - task: golang:golangci
 
   ci/vuln:
-    desc: Check Go vulnerabilities
+    desc: Check vulnerabilities in Limanix and its embedded Linux guest agent
     cmds:
       - task: golang:govulncheck
+        vars:
+          VULN_ARGS: './... github.com/lima-vm/lima/v2/cmd/lima-guestagent'
 
   ci/fmt:
     desc: Check Go formatting
@@ -58,6 +60,9 @@ tasks:
   ci/test:
     desc: Run Go tests with the race detector
     cmds:
+      - task: golang:_go/tool
+        vars:
+          CMD: go run ./cmd/bundle-socketvmnet --root .
       - task: golang:_go/tool
         vars:
           CMD: go run ./cmd/bundle-guestagent --root .
@@ -98,6 +103,7 @@ tasks:
       - sh: xcrun --find clang >/dev/null && xcrun --find vtool >/dev/null && command -v codesign >/dev/null
         msg: Install the Xcode command-line tools before building native binaries.
     cmds:
+      - go run ./cmd/bundle-socketvmnet --root .
       - go run ./cmd/bundle-guestagent --root .
       - mkdir -p bin
       - for: [amd64, arm64]

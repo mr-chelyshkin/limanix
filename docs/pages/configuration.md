@@ -162,8 +162,16 @@ Define system or user services through your trusted NixOS modules.
 ## Network access
 
 `network.mode = "shared"` uses a guest IP reachable from the Mac. Native VZ
-guests use `vzNAT`; QEMU guests use `lima:shared` and require the host's
-[socket_vmnet setup](https://lima-vm.io/docs/config/network/vmnet/#socket_vmnet).
+guests use `vzNAT`; QEMU guests use `lima:shared` with the bundled `socket_vmnet`
+helper. The first QEMU operation offers administrator-approved installation;
+`limanix network setup` prepares it explicitly. See
+[network prerequisites](getting-started.md#prerequisites) for protected paths,
+sudoers permissions, and existing Lima configurations.
+
+Lima's network helpers are shared system resources. Separate `LIMA_HOME`
+directories do not isolate their lifecycle; see
+[shared-network lifecycle](getting-started.md#shared-network-lifecycle) before
+combining multiple homes or concurrent `limactl` and Limanix operations.
 
 `network.ports.tcp` and `.udp` open guest firewall ports. A service must listen
 on a guest network interface, for example `0.0.0.0:8080`, to be reached as

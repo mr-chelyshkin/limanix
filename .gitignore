@@ -15,7 +15,7 @@
 /.hugo_build.lock
 /docs/.hugo_build.lock
 
-# Lima guestagents
+# Packaged Lima guest agents and socket_vmnet release archives
 /internal/bundle/resources/*.gz
 /internal/bundle/resources/manifest.json
 /internal/bundle/resources/.bundle-guestagent-*/

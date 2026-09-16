@@ -38,7 +38,7 @@ func TestDarwinHostArchitectureMatrix(t *testing.T) {
 			if (err == nil) != test.native {
 				t.Fatalf("native process check: %v", err)
 			}
-			if !test.native && !strings.Contains(err.Error(), "darwin-arm64") {
+			if !test.native && !strings.Contains(err.Error(), "limanix-arm64") {
 				t.Fatalf("translated process did not identify the required binary: %v", err)
 			}
 		})
@@ -74,7 +74,7 @@ func TestHostArchitectureLiveProcess(t *testing.T) {
 	}
 	nativeErr := RequireNativeArchitecture(host)
 	if runtime.GOOS == "darwin" && process != host {
-		if nativeErr == nil || !strings.Contains(nativeErr.Error(), "darwin-arm64") {
+		if nativeErr == nil || !strings.Contains(nativeErr.Error(), "limanix-arm64") {
 			t.Fatalf("translated process was not rejected clearly: %v", nativeErr)
 		}
 	} else if nativeErr != nil {

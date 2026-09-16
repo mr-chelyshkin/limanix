@@ -77,6 +77,7 @@ func TestNativeInspectionSkipsDeletedAndRejectsForeignNames(t *testing.T) {
 
 func nativeLifecycleClient(t *testing.T, arch string) (*Client, *limatype.Instance) {
 	t.Helper()
+	t.Setenv("LIMA_HOME", t.TempDir())
 	inst := &limatype.Instance{Name: "limanix-owned", Status: limatype.StatusStopped, Arch: arch, Config: &limatype.LimaYAML{}}
 	client := NewClient(func(_ context.Context, actual domain.Architecture) (string, error) {
 		expected, err := guestArchitecture(arch)

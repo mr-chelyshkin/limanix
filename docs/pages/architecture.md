@@ -12,11 +12,13 @@ lifecycle, host state, and Lima/NixOS integration into Go packages.
 cmd/
 ├── limanix/             Application entry point
 ├── bundle-guestagent/   Guest-agent generator entry point
+├── bundle-socketvmnet/  Network-helper packaging entry point
 └── docsgen/             Documentation generator entry point
 internal/
-├── buildinfo/           Build version metadata
-├── bundle/              Embedded Linux agents and runtime cache
-│   └── generator/       Build-time guest-agent generation and verification
+├── buildinfo/           Release identity and macOS compatibility baseline
+├── bundle/              Embedded agents, macOS helper, and guest-agent cache
+│   ├── generator/       Build-time guest-agent generation and verification
+│   └── vmnetgen/        Pinned network-helper download and verification
 ├── cli/                 Cobra commands and output
 ├── config/              TOML model, validation, and rendering
 ├── docs/
@@ -33,7 +35,8 @@ internal/
 │       ├── base/
 │       └── modules/
 ├── state/               Identity/runtime records and operation locks
-└── vm/                  Lifecycle orchestration
+├── vm/                  Lifecycle orchestration
+└── vmnet/               Confirmed privileged setup of Lima networking
 ```
 
 ## Dependency boundaries
@@ -61,6 +64,11 @@ internal/
 - `bundle/generator` builds and verifies those assets before the application is
   compiled. Its `Generate` function is called by `cmd/bundle-guestagent`; the
   runtime `bundle` package does not depend on the generator.
+- `bundle/vmnetgen` verifies and packages the pinned upstream macOS helper release.
+  `bundle` decodes the selected host executable and its license in memory.
+- `vmnet` checks Lima's network setup and requests administrator approval when
+  needed. Its short-lived installer uses embedded bytes, protected paths, Lima's
+  sudoers generator, and `visudo`. Lima retains daemon and socket lifecycle ownership.
 - `guest` applies guest configuration, opens development-user sessions, and
   discovers shared-network addresses.
 - `vm` orders those operations and decides when to persist records or remove
@@ -68,11 +76,20 @@ internal/
 - `cli` defines Cobra commands and displays results and errors. Dependencies are
   constructed lazily; help and reference generation do not open host state.
 
-Release binaries for macOS `amd64` and `arm64` include the VZ driver and require
-CGO and Apple's SDK. The native build task signs them with Lima's virtualization
-and network entitlements. QEMU and privileged `socket_vmnet` networking remain
-external prerequisites for foreign-architecture guests. NixOS files, bundled
-modules, and compressed Linux guest agents are embedded with `go:embed`.
+Release binaries target macOS 26 or newer on `amd64` and `arm64`. They include the
+VZ driver; building them requires CGO and Apple's SDK. The native build task signs
+them with Lima's virtualization and network entitlements. QEMU remains an external prerequisite for foreign
+architectures. The `socket_vmnet` helper is embedded and installed through an
+explicitly confirmed privileged setup. NixOS files, bundled modules, compressed
+Linux guest agents and original socket_vmnet release archives use `go:embed`.
+
+Helper validation includes its Mach-O deployment target: an upstream archive
+cannot raise the host minimum silently. Existing secure helpers are checked for
+host executability and remain administrator-managed. Lima owns their network
+lifecycle; Limanix adds a per-home lock around its own start/stop/delete calls,
+not a persistent network service. See the
+[shared-network limitations](getting-started.md#shared-network-lifecycle) when
+using external `limactl` or multiple Lima homes.
 
 `internal/bundle/generator` builds Linux `amd64` and `arm64` agents with CGO disabled and
 deterministic gzip compression. Its manifest records the Lima dependency,
@@ -169,7 +186,8 @@ default example and references from Go sources, then builds the Hugo site.
 
 The project's workflows run containerized source checks on Ubuntu through
 `mr-chelyshkin/actions/invoke-taskfile@v1` and run `ci/build` directly on
-`macos-26`. Each checkout generates or verifies its Linux guest-agent assets.
+`macos-26`. Each checkout generates or verifies its Linux guest-agent assets and
+the pinned macOS network-helper archives.
 The native build scans Darwin sources, then builds and signs both release
 architectures with CGO enabled and Apple's installed SDK.
 Guest boot, mounts, NixOS rebuilds, and host-to-guest networking are separate

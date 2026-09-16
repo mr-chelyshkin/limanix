@@ -8,12 +8,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lima-vm/lima/v2/pkg/networks"
+	"github.com/mr-chelyshkin/limanix/internal/buildinfo"
 	"github.com/mr-chelyshkin/limanix/internal/config"
 	"github.com/mr-chelyshkin/limanix/internal/domain"
+	"github.com/mr-chelyshkin/limanix/internal/vmnet"
 )
 
-// Preflight checks prerequisites without starting an instance or installing software.
+// Preflight checks host prerequisites before allocating an instance.
+// QEMU may require an explicitly confirmed administrator setup of Lima networking.
 func (client *Client) Preflight(ctx context.Context, cfg config.Config) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -29,8 +31,8 @@ func (client *Client) Preflight(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 
-	if runtime.GOOS != "darwin" {
-		return ErrMacOSRequired
+	if err := RequireMacOS(ctx); err != nil {
+		return err
 	}
 
 	hostArch, err := HostArchitecture()
@@ -46,39 +48,52 @@ func (client *Client) Preflight(ctx context.Context, cfg config.Config) error {
 		return fmt.Errorf("%w: %w", ErrMissingSSH, err)
 	}
 
+	if usesVZ(cfg.Resources.Arch, hostArch) {
+		if !nativeVZAvailable() {
+			return ErrMissingVZ
+		}
+		return nil
+	}
+
+	return client.checkQEMU(ctx, cfg.Resources.Arch)
+}
+
+// RequireMacOS checks the common host baseline before VM or privileged setup
+// operations. The bounded query also covers source builds with an older target.
+func RequireMacOS(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if runtime.GOOS != "darwin" {
+		return ErrMacOSRequired
+	}
+
 	query, cancel := queryContext(ctx)
 	defer cancel()
 
-	if usesVZ(cfg.Resources.Arch, hostArch) {
-		return checkVZ(query)
-	}
-
-	return checkQEMU(query, cfg.Resources.Arch)
-}
-
-func checkVZ(ctx context.Context) error {
-	if !nativeVZAvailable() {
-		return ErrMissingVZ
-	}
-
-	version, err := exec.CommandContext(ctx, "sw_vers", "-productVersion").Output()
+	version, err := exec.CommandContext(query, "/usr/bin/sw_vers", "-productVersion").Output()
 	if err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
+		if query.Err() != nil {
+			return query.Err()
 		}
 
 		return fmt.Errorf("determine macOS version: %w", err)
 	}
 
-	major, err := strconv.Atoi(strings.SplitN(strings.TrimSpace(string(version)), ".", 2)[0])
-	if err != nil || major < 13 {
-		return ErrOldMacOS
+	actual := strings.TrimSpace(string(version))
+	major, _, _ := strings.Cut(actual, ".")
+	number, err := strconv.Atoi(major)
+	if err != nil {
+		return fmt.Errorf("parse macOS version %q: %w", actual, err)
+	}
+	if number < buildinfo.MinimumMacOSMajor {
+		return fmt.Errorf("%w; found %s", ErrOldMacOS, actual)
 	}
 
-	return nil
+	return ctx.Err()
 }
 
-func checkQEMU(ctx context.Context, architecture domain.Architecture) error {
+func (client *Client) checkQEMU(ctx context.Context, architecture domain.Architecture) error {
 	arch, err := architecture.LimaArch()
 	if err != nil {
 		return err
@@ -89,31 +104,9 @@ func checkQEMU(ctx context.Context, architecture domain.Architecture) error {
 		return fmt.Errorf("install QEMU and make %s available in PATH: %w", executable, err)
 	}
 
-	return checkSharedNetworking(ctx)
+	return client.ensureSharedNetworking(ctx)
 }
 
-func checkSharedNetworking(ctx context.Context) error {
-	cfg, err := networks.LoadConfig()
-	if err != nil {
-		return err
-	}
-
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-
-	installed, err := cfg.IsDaemonInstalled(networks.SocketVMNet)
-	if err != nil {
-		return err
-	}
-
-	if !installed {
-		return ErrMissingVMNet
-	}
-
-	if err := cfg.VerifySudoAccess(ctx, cfg.Paths.Sudoers); err != nil {
-		return fmt.Errorf("QEMU shared networking requires Lima's socket_vmnet sudo access: %w", err)
-	}
-
-	return ctx.Err()
+func (client *Client) ensureSharedNetworking(ctx context.Context) error {
+	return vmnet.New(client.Stdin, client.Stderr).Ensure(ctx)
 }

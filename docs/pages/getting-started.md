@@ -11,21 +11,21 @@ foreign-architecture QEMU guests.
 
 ## Prerequisites
 
-Use macOS 13 or newer for native VZ guests. Limanix includes Lima's driver and
+Use macOS 26 or newer for both VZ and QEMU guests. Limanix includes Lima's driver and
 host-agent support, together with Linux guest agents for both supported
 architectures. Sessions use the system SSH client. Host Lima, Nix, and Python
 are not required; Nix builds run in the guest.
 
-Release builds provide `limanix-darwin-arm64` for Apple Silicon and
-`limanix-darwin-amd64` for Intel Macs. Install the matching artifact from
+Release builds provide `limanix-arm64` for Apple Silicon and
+`limanix-amd64` for Intel Macs. Install the matching artifact from
 [GitHub Releases](https://github.com/mr-chelyshkin/limanix/releases) when available:
 
 ```console
 mkdir -p ~/.local/bin
-install -m 755 limanix-darwin-arm64 ~/.local/bin/limanix
+install -m 755 limanix-arm64 ~/.local/bin/limanix
 ```
 
-For Intel Macs, use `limanix-darwin-amd64`. Add `~/.local/bin` to `PATH` if needed.
+For Intel Macs, use `limanix-amd64`. Add `~/.local/bin` to `PATH` if needed.
 
 Release binaries are ad-hoc signed with the entitlements needed by Lima's VZ
 driver. They are not Developer ID signed or notarized by Apple. Gatekeeper may
@@ -48,27 +48,86 @@ This removes the download quarantine marker; it does not notarize the binary or
 verify its publisher.
 
 VM commands require the native binary for your Mac. Running the Intel binary
-under Rosetta on Apple Silicon is not supported; use `limanix-darwin-arm64`.
+under Rosetta on Apple Silicon is not supported; use `limanix-arm64`.
 
 For a source checkout on macOS, install Task and the Xcode command-line tools,
 and use the Go toolchain in `go.mod`:
 
 ```console
 task --yes ci/build
-./bin/limanix-darwin-arm64 --help
+./bin/limanix-arm64 --help
 ```
 
 This builds Linux guest agents from the pinned Lima dependency, embeds their
 compressed archives, and builds and signs both macOS binaries. Install the
 matching binary as `limanix`, or prefix the commands below with
-`./bin/limanix-darwin-arm64` on Apple Silicon and
-`./bin/limanix-darwin-amd64` on Intel.
+`./bin/limanix-arm64` on Apple Silicon and
+`./bin/limanix-amd64` on Intel.
 
-Native guests use VZ and `vzNAT` networking on macOS 13 or newer. A foreign
-architecture, such as an `amd64` guest on Apple Silicon, requires QEMU and the
-[socket_vmnet setup](https://lima-vm.io/docs/config/network/vmnet/#socket_vmnet).
-Limanix checks these prerequisites; it does not install privileged network tools
-or modify sudoers files.
+Native guests use VZ and `vzNAT` networking. A foreign
+architecture, such as an `amd64` guest on Apple Silicon, requires QEMU in `PATH`.
+Limanix includes a pinned `socket_vmnet` helper for its shared network. Lima
+provides the QEMU driver, not the QEMU executable. With Homebrew, install the
+external prerequisite with `brew install qemu`. Its build must support your Mac's
+macOS version. The live QEMU lifecycle was verified with QEMU 11.1.1 on macOS 26;
+this is a tested version, not a newly imposed minimum QEMU version.
+
+The first QEMU operation offers the one-time privileged setup. You can also run
+it before creating a VM:
+
+```console
+limanix network setup
+```
+
+Run this command as your regular user in an interactive terminal. After explicit
+confirmation, `sudo` requests administrator authentication. Limanix installs a
+missing helper under `/opt/socket_vmnet`, generates the exact rules with Lima's
+`Sudoers` API, checks them with `visudo`, and atomically writes
+`/private/etc/sudoers.d/lima`. An existing sudoers file is backed up first. The
+helper and every parent directory must pass Lima's root-ownership and permission
+checks; user-writable paths and symlinks are refused.
+
+The setup respects the group and networks in `$LIMA_HOME/_config/networks.yaml`.
+New configurations use the pinned Lima version's defaults (`admin` in Lima 2.2);
+older files may retain `everyone`.
+The confirmation displays the selected group. Setup does not change it, overwrite
+a secure existing helper, or rewrite custom paths. Automatic installation uses
+Lima's standard paths; custom installations follow the
+[upstream instructions](https://lima-vm.io/docs/config/network/vmnet/#socket_vmnet).
+
+Setup checks that an existing helper can execute on the current host, without
+starting a network. An incompatible existing helper is reported for administrator
+repair, not overwritten. Missing files and mismatched sudoers are identified in
+both interactive and noninteractive errors.
+
+Later operations reuse a matching setup without a prompt. Changes to the Lima
+network configuration may require confirmation to regenerate sudoers. Limanix
+and QEMU continue running without root; only the network helper is privileged.
+No launchd service is installed. QEMU itself remains an external prerequisite.
+
+### Shared-network lifecycle
+
+Lima starts the QEMU network helper when a VM needs it and stops it when no
+running VM in the current `LIMA_HOME` uses that network. Limanix retains this
+model; stopping the last QEMU VM does not leave a permanent Limanix service.
+Before starting a stopped QEMU VM, Lima starts a missing helper. Read-only
+commands such as `list` do not start networking.
+
+Limanix serializes start, stop and delete operations within one `LIMA_HOME`.
+This protects a VM being started, including its image-download phase, from
+another Limanix operation stopping its helper. It does not coordinate external
+`limactl` processes.
+
+Different `LIMA_HOME` directories can still refer to the same system socket and
+PID files. Each Lima reconciler sees only its own instances; an operation in one
+home can therefore stop a helper used by another. Use one home for VMs sharing
+Lima's managed network and avoid concurrent lifecycle operations through Limanix
+and external `limactl`. Different homes are not network-lifecycle isolation.
+
+Modern QEMU versions can reconnect to Lima's managed socket after a helper
+restart. This does not guarantee uninterrupted guest connections; helper-crash
+recovery has not been validated by the live lifecycle checks. An already-running
+VM is not silently rebooted to repair its network.
 
 ## 1. Create a config
 

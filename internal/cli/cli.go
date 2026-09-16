@@ -43,6 +43,8 @@ func Command(streams IO, dependencies Dependencies) *cobra.Command {
 	}
 	root.AddCommand(
 		hostagent.Command(),
+		networkInstallerCommand(),
+		networkCommand(),
 		firstConfigCommand(),
 		createCommand(dependencies),
 		updateCommand(dependencies),

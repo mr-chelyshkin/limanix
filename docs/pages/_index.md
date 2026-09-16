@@ -53,7 +53,7 @@ also install packages manually; these changes belong to that VM.
 
 ## Install and start
 
-Run Limanix on macOS 13 or newer. Its binary includes Lima's native driver,
+Run Limanix on macOS 26 or newer. Its binary includes Lima's native driver,
 host-agent support, and Linux guest agents. Release builds target Apple Silicon
 (`arm64`) and Intel (`amd64`); host Lima, Python, and Nix are not required. See
 [Getting started](getting-started.md#prerequisites) for binary installation and
