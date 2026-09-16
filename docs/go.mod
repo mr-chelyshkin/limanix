@@ -4,4 +4,4 @@ go 1.27.0
 
 toolchain go1.27.1
 
-require github.com/alex-shpak/hugo-book v0.14.0
+require github.com/imfing/hextra v0.12.3

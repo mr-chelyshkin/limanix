@@ -37,6 +37,6 @@ Imports copy the module directory. Changing the original files does not change
 the registered module or an existing VM. After replacing the registry copy,
 apply your VM configuration with `limanix update --config limanix.toml`.
 
-See [the examples guide](../docs/pages/examples.md) for updates, user services,
+See [the examples guide](../docs/pages/guide/examples.md) for project workflows
 and cleanup. Keep configurations containing private paths or environment values
 in your own project or this checkout's ignored `vm/` directory.

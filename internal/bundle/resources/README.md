@@ -4,7 +4,7 @@
 Taskfile supplies its version, archive digests/sizes and minimum macOS through the shared linker flags; a direct invocation without them fails. 
 Both original tar.gz archives are embedded with their upstream license. Packaging verifies their pinned SHA-256 digests, sizes, Mach-O architecture,
 macOS deployment target, and system-library dependencies. The supported host minimum comes from `macos_version`. Runtime installation needs administrator approval. 
-For the update procedure, see **Build inputs and dependency updates** in `docs/pages/contributing.md`.
+For dependency update procedures, see [Building Limanix](../../../docs/pages/development/builds.md).
 
 `go run ./cmd/bundle-guestagent` builds the pinned Lima guest agent for Linux arm64 and amd64, then writes deterministic gzip archives and an integrity manifest here. 
 Packaged archives and the manifest are build inputs supplied before CI and release builds. They are not tracked in Git.

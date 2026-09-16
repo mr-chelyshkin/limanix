@@ -5,7 +5,7 @@ disableKinds = ['taxonomy', 'term', 'RSS']
 
 [module]
   [[module.imports]]
-    path = 'github.com/alex-shpak/hugo-book'
+    path = 'github.com/imfing/hextra'
   [[module.mounts]]
     source = 'pages'
     target = 'content'
@@ -22,17 +22,47 @@ disableKinds = ['taxonomy', 'term', 'RSS']
     source = '../examples'
     target = 'assets/examples'
 
-[params]
-  BookSection = '*'
-  BookTheme = 'auto'
-  BookToC = true
-  BookSearch = true
-  BookComments = false
-  BookPortableLinks = 'error'
+[[menu.main]]
+  name = 'Search'
+  weight = 1
+  [menu.main.params]
+    type = 'search'
+
+[[menu.main]]
+  name = 'GitHub'
+  url = 'https://github.com/mr-chelyshkin/limanix'
+  weight = 2
+  [menu.main.params]
+    icon = 'github'
+
+[params.navbar]
+  displayLogo = false
+
+[params.theme]
+  default = 'system'
+  displayToggle = true
+
+[params.footer]
+  displayCopyright = false
+  displayPoweredBy = false
+
+# Keep the Mermaid version previously shipped with Hugo Book.
+# Hextra downloads it during the build and publishes a local, fingerprinted asset.
+[params.mermaid]
+  base = 'https://cdn.jsdelivr.net/npm/mermaid@11.14.0/dist'
 
 [markup.tableOfContents]
   startLevel = 2
   endLevel = 3
+
+[markup.highlight]
+  noClasses = false
+
+# Resolve existing Markdown page links and global assets independently of the theme.
+[markup.goldmark.renderHooks.link]
+  useEmbedded = 'always'
+[markup.goldmark.renderHooks.image]
+  useEmbedded = 'always'
 
 # Generated reference tables contain escaped values inside HTML code elements.
 [markup.goldmark.renderer]

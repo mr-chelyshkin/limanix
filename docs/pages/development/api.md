@@ -1,9 +1,9 @@
 +++
 title = "Go packages"
-weight = 40
+description = "Implementation contracts for configuration, commands, and runtime adapters."
+weight = 30
+url = "/api/"
 +++
-
-# Go packages
 
 Limanix is a Go command-line application. Its implementation lives under
 `internal/`, where Go limits imports to this repository's module. These packages
@@ -43,24 +43,26 @@ input/output streams, and returns an OS exit status. Its manager and registry
 interfaces allow tests to exercise CLI behavior without a VM.
 
 `cmd/docsgen` calls `internal/docs/generator.Generate`, which uses that command
-tree and the configuration renderer to write the [CLI reference](cli.md),
-[configuration reference](configuration.md), default TOML, and version metadata.
+tree and the configuration renderer to write the [CLI reference](/reference/cli.md),
+[configuration reference](/reference/configuration.md), default TOML, and version metadata.
 Hugo includes those generated files in the static documentation site.
 
 ## Runtime packages
 
 | Package | Boundary |
 | --- | --- |
+| `internal/app` | Constructs and shares runtime services lazily. |
 | `internal/vm` | Orders VM lifecycle operations, generation preparation, and persistence. |
 | `internal/state` | Maintains immutable identity and mutable runtime records, preserved-home records, and locks. |
 | `internal/managedhome` | Creates and removes the exact home derived from its host ownership record. |
 | `internal/modules` | Imports trusted module trees and resolves source paths under registry locks. |
 | `internal/lima` | Uses Lima's schema, store, driver, and lifecycle APIs directly; opens sessions with the system SSH client. |
 | `internal/hostagent` | Runs the hidden Lima host-agent subprocess, its PID lease and API socket, logging, and signal-driven shutdown. |
-| `internal/bundle` | Embeds and verifies compressed Linux agents and materializes them in the host runtime cache. |
+| `internal/bundle` | Verifies and caches Linux guest agents; decodes embedded macOS helper archives. |
+| `internal/vmnet` | Checks Lima networking and runs confirmed privileged setup. |
 | `internal/nixos` | Embeds NixOS sources and bundled modules; copies selected modules into a generation. |
 | `internal/guest` | Applies guest configuration, starts development-user sessions, and discovers the guest address. |
 | `internal/filesystem` | Checks host paths and writes private, durable atomic files. |
-| `internal/buildinfo` | Provides version metadata replaced by release build flags. |
+| `internal/buildinfo` | Provides release metadata and validates the configured macOS baseline. |
 
-See [Source architecture](architecture.md) for operation ordering and ownership.
+See [Architecture](architecture.md) for operation ordering and ownership.
