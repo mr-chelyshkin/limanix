@@ -84,12 +84,13 @@ func newInstance(cfg config.Config) (domain.Instance, error) {
 
 	return domain.Instance{
 		Identity: domain.Identity{
+			Name:     cfg.Name,
+			Arch:     cfg.Resources.Arch,
+			Username: cfg.User.Name,
+			UserHome: cfg.User.Home,
+			HomeRoot: cfg.Home.Root,
+
 			ID:        id,
-			Name:      cfg.Name,
-			Arch:      cfg.Resources.Arch,
-			Username:  cfg.User.Name,
-			UserHome:  cfg.User.Home,
-			HomeRoot:  cfg.Home.Root,
 			Home:      home,
 			CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		},
@@ -98,7 +99,6 @@ func newInstance(cfg config.Config) (domain.Instance, error) {
 	}, nil
 }
 
-// prepareCreation owns local rollback until ownership has been saved successfully.
 func (m *Manager) prepareCreation(ctx context.Context, instance domain.Instance, cfg config.Config) (string, error) {
 	template, err := m.generations.prepare(ctx, instance, cfg)
 	if err != nil {
@@ -120,7 +120,6 @@ func (m *Manager) prepareCreation(ctx context.Context, instance domain.Instance,
 	return template, nil
 }
 
-// rollbackCreation never drops ownership when the home could not be removed.
 func (m *Manager) rollbackCreation(instance domain.Instance, cause error) error {
 	if err := m.homes.Remove(instance.Identity); err != nil {
 		return m.recordFailure(instance, errors.Join(cause, err))

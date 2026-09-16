@@ -9,8 +9,7 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/lima"
 )
 
-// Update retains identity, disk, and managed home. Each attempt stages a new
-// generation; only a successful commit permits best-effort removal of old inputs.
+// Update retains identity, disk, and managed home.
 func (m *Manager) Update(ctx context.Context, path string) (result domain.Instance, err error) {
 	cfg, err := config.Load(path)
 	if err != nil {
@@ -71,7 +70,6 @@ func (m *Manager) Update(ctx context.Context, path string) (result domain.Instan
 	return result, nil
 }
 
-// prepareUpdate retains a generation when Save may already have committed it.
 func (m *Manager) prepareUpdate(ctx context.Context, instance domain.Instance, cfg config.Config) (template string, failure error) {
 	defer func() {
 		if failure != nil {
@@ -84,11 +82,11 @@ func (m *Manager) prepareUpdate(ctx context.Context, instance domain.Instance, c
 		return "", err
 	}
 
-	if err := m.store.Save(instance); err != nil {
+	if err = m.store.Save(instance); err != nil {
 		return "", err
 	}
 
-	if err := ctx.Err(); err != nil {
+	if err = ctx.Err(); err != nil {
 		return "", err
 	}
 
@@ -108,8 +106,6 @@ func (m *Manager) discardUncommitted(instance domain.Instance) error {
 	return m.generations.discard(instance)
 }
 
-// applyUpdate rechecks live disk and power state after preparation.
-// An external Lima operation may have changed either while inputs were staged.
 func (m *Manager) applyUpdate(ctx context.Context, instance domain.Instance, disk domain.ByteSize, template string) error {
 	actual, err := m.checkUpdateBackend(ctx, instance.Identity, disk)
 	if err != nil {

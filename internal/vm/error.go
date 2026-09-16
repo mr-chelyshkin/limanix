@@ -7,7 +7,6 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/domain"
 )
 
-// Lifecycle causes can be checked independently of a VM-specific diagnostic.
 var (
 	ErrAlreadyExists  = errors.New("VM already has state")
 	ErrBackendMissing = errors.New("backend instance is missing")
@@ -26,12 +25,12 @@ type InstanceError struct {
 
 // Error renders the lifecycle diagnostic at the application boundary.
 func (e *InstanceError) Error() string {
-	switch e.Cause {
-	case ErrAlreadyExists:
+	switch {
+	case errors.Is(e.Cause, ErrAlreadyExists):
 		return fmt.Sprintf("VM '%s' already has state; use update or delete", e.Name)
-	case ErrBackendMissing:
+	case errors.Is(e.Cause, ErrBackendMissing):
 		return fmt.Sprintf("lima instance for '%s' is missing; delete its saved record", e.Name)
-	case ErrNotRunning:
+	case errors.Is(e.Cause, ErrNotRunning):
 		return fmt.Sprintf("VM '%s' is not running; use limanix start %s", e.Name, e.Name)
 	default:
 		return fmt.Sprintf("VM '%s': %v", e.Name, e.Cause)

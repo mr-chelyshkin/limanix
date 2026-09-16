@@ -59,7 +59,6 @@ func (m *Manager) deleteResources(ctx context.Context, identity domain.Identity,
 	return m.store.Remove(identity.Name)
 }
 
-// deleteBackend tolerates an already absent VM without weakening other failures.
 func (m *Manager) deleteBackend(ctx context.Context, name string, force bool) error {
 	instances, err := m.backend.FetchAll(ctx)
 	if err != nil {

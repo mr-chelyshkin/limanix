@@ -14,10 +14,9 @@ import (
 )
 
 // Manager coordinates application operations using explicitly supplied services.
-// Its zero value is not usable; construct a Manager with New.
 type Manager struct {
-	store   Store
 	backend Backend
+	store   Store
 	homes   Homes
 	guest   Guest
 
@@ -29,9 +28,6 @@ type Manager struct {
 }
 
 // New creates a lifecycle manager without inspecting the host or creating state.
-// It panics if a service is nil, including an interface holding a typed nil.
-// Missing services are programming errors in dependency wiring; operations return
-// errors for invalid configuration and host failures.
 func New(deps Dependencies) *Manager {
 	switch {
 	case missingDependency(deps.Store):
@@ -79,7 +75,6 @@ func (m *Manager) preflight(ctx context.Context, cfg config.Config) error {
 	return nil
 }
 
-// recordFailure keeps the caller's diagnostic in the error chain, not in state.
 func (m *Manager) recordFailure(instance domain.Instance, cause error) error {
 	path, err := m.store.RecordPath(instance.Identity.Name)
 	if err != nil {
@@ -110,7 +105,6 @@ func (m *Manager) requireLima(ctx context.Context, identity domain.Identity) (li
 	}
 }
 
-// applyGuest leaves recovery records intact when start or guest provisioning fails.
 func (m *Manager) applyGuest(ctx context.Context, instance domain.Instance) error {
 	name := instance.Identity.LimaName()
 	if err := m.backend.Start(ctx, name); err != nil {

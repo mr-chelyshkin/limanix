@@ -25,7 +25,6 @@ type Backend interface {
 }
 
 // Store owns persisted VM records, operation locks and input-generation paths.
-// Remove discards host records only; it must never remove the managed home.
 type Store interface {
 	Save(domain.Instance) error
 	Load(domain.VMName) (domain.Instance, error)
@@ -50,7 +49,6 @@ type Homes interface {
 }
 
 // Guest applies a prepared generation and opens the development user's session.
-// Address must support concurrent probes for different VM instances.
 type Guest interface {
 	Apply(context.Context, string, domain.Username) error
 	Address(context.Context, lima.Instance) string
@@ -58,19 +56,15 @@ type Guest interface {
 }
 
 // Dependencies contains the host services assembled before constructing a Manager.
-// Every service must be non-nil, including the concrete value inside an interface.
-// HostUID is the unprivileged host user whose files are exposed to the guest.
 type Dependencies struct {
-	Store   Store
-	Backend Backend
 	Modules *modules.Registry
+	Backend Backend
+	Store   Store
 	Homes   Homes
 	Guest   Guest
 	HostUID int
 }
 
-// missingDependency checks constructor inputs without calling service methods.
-// Interfaces can hold nil pointers or other nil-capable implementation types.
 func missingDependency(dependency any) bool {
 	if dependency == nil {
 		return true

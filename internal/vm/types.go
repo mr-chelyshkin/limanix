@@ -6,20 +6,19 @@ import (
 )
 
 // Info combines persisted ownership with live backend status for a CLI listing.
-// Damaged records remain visible without hiding healthy VMs.
 //
-// OperationStatus describes Limanix's workflow; BackendStatus describes Lima's
-// lifecycle. Nil ownership and status fields indicate unavailable source data.
-// An empty Address means that no address was discovered, not necessarily that
-// the VM failed.
+// OperationStatus describes Limanix's workflow; BackendStatus describes Lima's lifecycle.
+// Nil ownership and status fields indicate unavailable source data.
+// An empty Address means that no address was discovered, not necessarily that the VM failed.
 // Error carries a state-read diagnostic or the persisted recovery message.
 type Info struct {
-	Name            string               `json:"name"`
-	Address         string               `json:"address"`
-	Home            *string              `json:"home"`
+	Name     string  `json:"name"`
+	Address  string  `json:"address"`
+	Home     *string `json:"home"`
+	LimaName *string `json:"lima_name"`
+	Error    *string `json:"error"`
+
 	OperationStatus *domain.Status       `json:"state"`
 	Arch            *domain.Architecture `json:"arch"`
 	BackendStatus   *lima.Status         `json:"status"`
-	LimaName        *string              `json:"lima_name"`
-	Error           *string              `json:"error"`
 }

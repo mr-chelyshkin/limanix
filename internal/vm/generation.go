@@ -15,12 +15,10 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/nixos"
 )
 
-// generationBuilder owns immutable VM inputs, including registry source leases.
-// It does not change VM lifecycle records or invoke backend lifecycle operations.
 type generationBuilder struct {
-	store   Store
-	backend Backend
 	modules *modules.Registry
+	backend Backend
+	store   Store
 	hostUID int
 
 	removeAll func(string) error
@@ -91,7 +89,6 @@ func (g *generationBuilder) prepareBundle(ctx context.Context, cfg config.Config
 	return ctx.Err()
 }
 
-// discard removes only an input generation that has not been committed to state.
 func (g *generationBuilder) discard(instance domain.Instance) error {
 	directory, err := g.store.GenerationDir(instance)
 	if err != nil {
@@ -101,7 +98,6 @@ func (g *generationBuilder) discard(instance domain.Instance) error {
 	return g.removeAll(directory)
 }
 
-// prune removes stale generations after the new ready record has been committed.
 func (g *generationBuilder) prune(instance domain.Instance) []error {
 	current, err := g.store.GenerationDir(instance)
 	if err != nil {

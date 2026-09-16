@@ -10,7 +10,6 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/state"
 )
 
-// addressProbeConcurrency bounds simultaneous SSH probes during one listing.
 const addressProbeConcurrency = 4
 
 // FetchAll lists every saved VM, including damaged or interrupted records.
@@ -31,7 +30,6 @@ func (m *Manager) FetchAll(ctx context.Context) ([]Info, error) {
 
 	for index, entry := range entries {
 		probes.Go(func() error {
-			// Each probe owns its row; completion order does not reorder the output.
 			result[index] = m.instanceInfo(ctx, entry, instances)
 			return nil
 		})
@@ -40,12 +38,13 @@ func (m *Manager) FetchAll(ctx context.Context) ([]Info, error) {
 	return result, probes.Wait()
 }
 
-// listBackend avoids host access when there is no readable managed identity.
 func (m *Manager) listBackend(ctx context.Context, entries []state.Entry) (map[string]lima.Instance, error) {
-	result := make(map[string]lima.Instance)
-	hasIdentity := slices.ContainsFunc(entries, func(entry state.Entry) bool {
-		return entry.Identity != nil
-	})
+	var (
+		result      = make(map[string]lima.Instance)
+		hasIdentity = slices.ContainsFunc(entries, func(entry state.Entry) bool {
+			return entry.Identity != nil
+		})
+	)
 	if !hasIdentity {
 		return result, nil
 	}
