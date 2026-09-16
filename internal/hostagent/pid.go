@@ -14,7 +14,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// pidLease holds the exclusive PID descriptor and removes only that same file.
 type pidLease struct {
 	file *os.File
 	path string
@@ -32,15 +31,15 @@ func acquirePID(filename string) (_ *pidLease, failure error) {
 		}
 	}()
 
-	if err := unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+	if err = unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		return nil, fmt.Errorf("another host agent owns the PID file: %w", err)
 	}
 
-	if err := checkPreviousPID(file); err != nil {
+	if err = checkPreviousPID(file); err != nil {
 		return nil, err
 	}
 
-	if err := writePID(file); err != nil {
+	if err = writePID(file); err != nil {
 		return nil, err
 	}
 

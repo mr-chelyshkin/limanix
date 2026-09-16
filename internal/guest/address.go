@@ -12,8 +12,6 @@ import (
 
 const addressProbeTimeout = 5 * time.Second
 
-// interfaceAddresses is the subset of "ip -j address show" needed to find the
-// shared interface. Interface names are intentionally not assumed.
 type interfaceAddresses struct {
 	MACAddress string             `json:"address"`
 	Addresses  []interfaceAddress `json:"addr_info"`
@@ -26,7 +24,6 @@ type interfaceAddress struct {
 }
 
 // Address selects a global IPv4 address by the configured shared interface MAC.
-// An unavailable probe returns an empty address without failing VM listing.
 func (guest *Guest) Address(ctx context.Context, instance lima.Instance) string {
 	if instance.Status != lima.Running {
 		return ""
@@ -47,7 +44,7 @@ func (guest *Guest) Address(ctx context.Context, instance lima.Instance) string 
 
 	var interfaces []interfaceAddresses
 
-	if err := json.Unmarshal([]byte(output), &interfaces); err != nil {
+	if err = json.Unmarshal([]byte(output), &interfaces); err != nil {
 		return ""
 	}
 

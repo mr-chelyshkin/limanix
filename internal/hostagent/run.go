@@ -32,8 +32,6 @@ func (opts options) run(ctx context.Context, stdout io.Writer) (failure error) {
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(signals)
 
-	// Lima needs a live context after receiving its shutdown signal.
-	// Translate parent cancellation into SIGTERM instead of canceling its cleanup.
 	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	defer cancel()
 

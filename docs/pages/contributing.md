@@ -117,6 +117,15 @@ versions. Their relationships are documented beside the corresponding checks in
 If a new release changes these contracts or its Lima integration, updating
 Taskfile pins alone is insufficient: the corresponding adapter must change too.
 
+The nixos-lima base image is a guest integration dependency, not a Taskfile build
+setting. Its release is declared in `internal/nixos/resources/base/flake.nix`
+and resolved by Nix into `flake.lock`. Go reads that locked reference for both
+the image download directory and filename; it has no separate version string.
+Update both image digests in `internal/nixos/image.go` together with the Nix input
+and regenerated lock. Review `resources/base/platform.nix` for partition,
+filesystem, bootloader and NixOS compatibility; verify first boot, update and
+disk growth before publishing. The procedure is also documented beside `BaseImage`.
+
 Vulnerability checks and tests run separately through `ci/vuln` and `ci/test`;
 `ci/build` does not invoke them. `ci/vuln` scans both the local Go packages and
 Lima's Linux guest-agent entry point, which is compiled into the embedded bundle.

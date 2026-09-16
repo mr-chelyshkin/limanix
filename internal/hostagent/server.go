@@ -14,11 +14,21 @@ import (
 	"github.com/lima-vm/lima/v2/pkg/hostagent/api/server"
 )
 
-// apiServer owns the listener and its path until Serve has returned.
 type apiServer struct {
 	server *http.Server
 	socket string
 	result <-chan error
+}
+
+// Close stops serving, waits for Serve to finish, and removes the checked socket.
+func (api *apiServer) Close() error {
+	closeErr := api.server.Close()
+	serveErr := <-api.result
+	if errors.Is(serveErr, http.ErrServerClosed) {
+		serveErr = nil
+	}
+
+	return errors.Join(closeErr, serveErr, removeSocket(api.socket))
 }
 
 func startAPIServer(ctx context.Context, socket string, agent *limaagent.HostAgent, signals chan<- os.Signal) (*apiServer, error) {
@@ -43,7 +53,7 @@ func startAPIServer(ctx context.Context, socket string, agent *limaagent.HostAge
 	)
 
 	go func() {
-		err := httpServer.Serve(listener)
+		err = httpServer.Serve(listener)
 		result <- err
 
 		if !errors.Is(err, http.ErrServerClosed) {
@@ -58,20 +68,7 @@ func startAPIServer(ctx context.Context, socket string, agent *limaagent.HostAge
 	}, nil
 }
 
-// Close stops serving, waits for Serve to finish, and removes the checked socket.
-func (api *apiServer) Close() error {
-	closeErr := api.server.Close()
-	serveErr := <-api.result
-	if errors.Is(serveErr, http.ErrServerClosed) {
-		serveErr = nil
-	}
-
-	return errors.Join(closeErr, serveErr, removeSocket(api.socket))
-}
-
 func listenSocket(ctx context.Context, socket string) (*net.UnixListener, error) {
-	// The directory prevents access before the socket receives its own 0600 mode.
-	// Do not change the process-wide umask while other goroutines may create files.
 	if err := requirePrivateDirectory(filepath.Dir(socket)); err != nil {
 		return nil, err
 	}
@@ -84,9 +81,8 @@ func listenSocket(ctx context.Context, socket string) (*net.UnixListener, error)
 	}
 
 	unixListener := listener.(*net.UnixListener)
-	// Closing the listener must leave path validation to controlled cleanup.
 	unixListener.SetUnlinkOnClose(false)
-	if err := os.Chmod(socket, 0o600); err != nil {
+	if err = os.Chmod(socket, 0o600); err != nil {
 		return nil, errors.Join(err, unixListener.Close(), removeSocket(socket))
 	}
 

@@ -10,10 +10,9 @@ import (
 	"github.com/lima-vm/lima/v2/pkg/ptr"
 	"github.com/mr-chelyshkin/limanix/internal/config"
 	"github.com/mr-chelyshkin/limanix/internal/domain"
+	"github.com/mr-chelyshkin/limanix/internal/nixos"
 	"github.com/opencontainers/go-digest"
 )
-
-const imageRelease = "https://github.com/nixos-lima/nixos-lima/releases/download/v0.2.1"
 
 // Render uses Lima's schema types, emitting JSON (a YAML subset) without secret ENV values.
 func Render(cfg config.Config, managedHome, runtimeDir string, hostArch domain.Architecture, hostUID int) ([]byte, error) {
@@ -40,9 +39,20 @@ func Render(cfg config.Config, managedHome, runtimeDir string, hostArch domain.A
 		return nil, ErrManagedMounts
 	}
 
+	image, err := nixos.BaseImage(cfg.Resources.Arch)
+	if err != nil {
+		return nil, err
+	}
+
 	document := machineTemplate(cfg.Resources.Arch, hostArch)
 	document.Arch = &arch
-	document.Images = []limatype.Image{baseImage(arch)}
+	document.Images = []limatype.Image{{
+		File: limatype.File{
+			Location: image.Location,
+			Arch:     arch,
+			Digest:   digest.NewDigestFromEncoded(digest.SHA256, image.SHA256),
+		},
+	}}
 	document.CPUs = ptr.Of(cfg.Resources.CPU)
 	document.Memory = &memory
 	document.Disk = &disk
@@ -103,21 +113,6 @@ func machineTemplate(architecture, host domain.Architecture) limatype.LimaYAML {
 	}
 
 	return document
-}
-
-func baseImage(architecture string) limatype.Image {
-	checksum := "ebdf8363bcb51542892963790c08ddfbffe45443ab19c5e70275c4f0c0aa6f11"
-	if architecture == limatype.X8664 {
-		checksum = "967da3baf4ea410e728c751ca9e0a617299b6809297e4e50e773cae4ce79197d"
-	}
-
-	return limatype.Image{
-		File: limatype.File{
-			Location: imageRelease + "/nixos-lima-v0.2.1-" + architecture + ".qcow2",
-			Arch:     architecture,
-			Digest:   digest.Digest("sha256:" + checksum),
-		},
-	}
 }
 
 func managementUser(hostUID int) limatype.User {

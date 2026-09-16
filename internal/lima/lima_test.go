@@ -11,6 +11,7 @@ import (
 	"github.com/lima-vm/lima/v2/pkg/limatype"
 	"github.com/mr-chelyshkin/limanix/internal/config"
 	"github.com/mr-chelyshkin/limanix/internal/domain"
+	"github.com/mr-chelyshkin/limanix/internal/nixos"
 )
 
 func TestTemplateBoundaries(t *testing.T) {
@@ -125,11 +126,12 @@ func TestArchitectureTemplatesUseHardwareArchitecture(t *testing.T) {
 			if test.vmType == limatype.QEMU && (*rendered.MountType != limatype.NINEP || rendered.Networks[0].Lima != "shared") {
 				t.Fatal("foreign guest requires QEMU/shared")
 			}
-			if test.host == domain.ARM64 && test.guest == domain.AMD64 {
-				image := rendered.Images[0]
-				if image.Arch != "x86_64" || image.Digest.String() != "sha256:967da3baf4ea410e728c751ca9e0a617299b6809297e4e50e773cae4ce79197d" || !strings.Contains(image.Location, "v0.2.1-x86_64.qcow2") {
-					t.Fatal("unpinned or unexpected foreign image")
-				}
+			image, err := nixos.BaseImage(test.guest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if rendered.Images[0].Location != image.Location || rendered.Images[0].Digest.String() != "sha256:"+image.SHA256 {
+				t.Fatal("template image differs from the pinned NixOS base")
 			}
 		})
 	}

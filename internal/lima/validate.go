@@ -33,7 +33,7 @@ func (client *Client) Validate(ctx context.Context, path string) (failure error)
 		return err
 	}
 
-	if err := limayaml.Validate(yaml, false); err != nil {
+	if err = limayaml.Validate(yaml, false); err != nil {
 		return err
 	}
 

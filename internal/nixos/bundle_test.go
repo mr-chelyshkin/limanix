@@ -39,8 +39,24 @@ func TestEmbeddedModulesAndPinnedBaseCopied(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(lock), `"ref": "v0.2.1"`) || strings.Contains(string(lock), "runtimeSpec") {
+	originalLock, err := resources.ReadFile("resources/base/flake.lock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(lock) != string(originalLock) || strings.Contains(string(lock), "runtimeSpec") {
 		t.Fatal("base flake lock differs from pinned contract")
+	}
+	var pinned baseFlakeLock
+	if err := json.Unmarshal(lock, &pinned); err != nil {
+		t.Fatal(err)
+	}
+	declaration, err := os.ReadFile(filepath.Join(flake, "flake.nix"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	release := pinned.Nodes["nixos-lima"].Original.Ref
+	if release == "" || !strings.Contains(string(declaration), `"github:nixos-lima/nixos-lima/`+release+`"`) {
+		t.Fatal("nixos-lima input differs from the locked image release")
 	}
 	metadata := BuiltinModules()
 	metadata["git"] = "changed"

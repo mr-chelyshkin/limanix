@@ -15,13 +15,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// options is Lima's subprocess contract after Cobra has decoded the flags.
 type options struct {
 	name              string
-	pidfile           string
 	socket            string
-	guestAgentArchive string
+	pidfile           string
 	nerdctlArchive    string
+	guestAgentArchive string
 	runGUI            bool
 	progress          bool
 }
@@ -32,7 +31,6 @@ func readOptions(command *cobra.Command, name string) options {
 		result = options{name: name}
 	)
 
-	// These names and types are declared by Command; Cobra already checked inputs.
 	result.pidfile, _ = flags.GetString("pidfile")
 	result.socket, _ = flags.GetString("socket")
 	result.guestAgentArchive, _ = flags.GetString("guestagent")
@@ -74,7 +72,6 @@ func (opts options) agentOptions() []limaagent.Opt {
 	return result
 }
 
-// validateName limits the internal agent to exact generated Limanix instance names.
 func validateName(name string) error {
 	if !strings.HasPrefix(name, "limanix-") {
 		return ErrForeignInstance
@@ -103,7 +100,7 @@ func validatePaths(name, pidfile, socket string) error {
 		return err
 	}
 
-	if err := requirePrivateDirectory(directory); err != nil {
+	if err = requirePrivateDirectory(directory); err != nil {
 		return err
 	}
 
@@ -118,7 +115,6 @@ func validatePaths(name, pidfile, socket string) error {
 	return nil
 }
 
-// requirePrivateDirectory protects the PID file and socket from other host users.
 func requirePrivateDirectory(path string) error {
 	info, err := os.Lstat(path)
 	if err != nil {

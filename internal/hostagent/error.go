@@ -2,8 +2,6 @@ package hostagent
 
 import "errors"
 
-// Host-agent errors identify invalid subprocess inputs and unsafe filesystem
-// state. They do not represent a guest provisioning or NixOS rebuild failure.
 var (
 	ErrDirectoryPermissions = errors.New("host-agent directory must be a private directory with 0700 permissions")
 	ErrForeignInstance      = errors.New("host agent requires a Limanix instance name")

@@ -20,16 +20,15 @@ func (*Manager) Create(identity domain.Identity) (string, error) {
 		return "", err
 	}
 
-	if err := os.MkdirAll(root, 0o700); err != nil {
+	if err = os.MkdirAll(root, 0o700); err != nil {
 		return "", createError(home, err)
 	}
 
-	// Recheck after creating the parent: ownership must still resolve to the same path.
-	if _, _, err := checkedPaths(identity); err != nil {
+	if _, _, err = checkedPaths(identity); err != nil {
 		return "", err
 	}
 
-	if err := os.Mkdir(home, 0o700); err != nil {
+	if err = os.Mkdir(home, 0o700); err != nil {
 		return "", createError(home, err)
 	}
 
@@ -37,7 +36,6 @@ func (*Manager) Create(identity domain.Identity) (string, error) {
 }
 
 // Remove deletes the recorded allocation without trusting guest-writable markers.
-// Symlinks inside the home are removed as links rather than followed.
 func (*Manager) Remove(identity domain.Identity) error {
 	_, home, err := checkedPaths(identity)
 	if err != nil {
@@ -55,7 +53,7 @@ func (*Manager) Remove(identity domain.Identity) error {
 		return fmt.Errorf("%w: %s", ErrNotDirectory, home)
 	}
 
-	if err := os.RemoveAll(home); err != nil {
+	if err = os.RemoveAll(home); err != nil {
 		return fmt.Errorf("cannot remove managed home %q: %w", home, err)
 	}
 
@@ -69,7 +67,7 @@ func checkedPaths(identity domain.Identity) (root, home string, err error) {
 	}
 
 	for _, path := range []string{root, home} {
-		if err := checkPath(path); err != nil {
+		if err = checkPath(path); err != nil {
 			return "", "", err
 		}
 	}

@@ -10,8 +10,6 @@
   services.openssh.enable = true;
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-  # Partition layout of the pinned nixos-lima v0.2.1 base images.
-  # Grow the root partition before autoResize expands its filesystem on boot.
   boot.growPartition = true;
   boot.loader.grub = {
     device = "nodev";

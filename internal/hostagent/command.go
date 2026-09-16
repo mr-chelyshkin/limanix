@@ -7,14 +7,13 @@ import (
 )
 
 // Command implements the hidden subprocess interface used by Lima StartWithPaths.
-// The parent CLI must leave SIGINT/SIGTERM handling to this command.
 func Command() *cobra.Command {
 	command := &cobra.Command{
 		Use:    "hostagent INSTANCE",
 		Short:  "Run the internal Lima host agent.",
-		Hidden: true,
 		Args:   cobra.ExactArgs(1),
 		RunE:   runHostAgent,
+		Hidden: true,
 	}
 
 	flags := command.Flags()
@@ -48,12 +47,12 @@ func runHostAgent(command *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := lima.RequireNativeArchitecture(host); err != nil {
+	if err = lima.RequireNativeArchitecture(host); err != nil {
 		return err
 	}
 
 	options := readOptions(command, args[0])
-	if err := options.validate(); err != nil {
+	if err = options.validate(); err != nil {
 		return err
 	}
 

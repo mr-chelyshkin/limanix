@@ -3,7 +3,6 @@ package guest
 import "context"
 
 // Client is the management connection needed for guest operations.
-// Run must support concurrent address probes for different VM instances.
 type Client interface {
 	Run(context.Context, string, []string, bool) (string, error)
 	Start(context.Context, string) error

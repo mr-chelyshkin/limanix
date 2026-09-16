@@ -15,6 +15,9 @@
 //	└─ environment.sh             login-shell exports
 //
 // Base flake files and their lock file are embedded in the executable and copied into each generation.
+// [BaseImage] derives the first-boot disk URL from the same locked nixos-lima release. Image digests live in image.go;
+// changing that dependency requires reviewing the partition and boot configuration in resources/base/platform.nix.
+//
 // Each selected module becomes a separate snapshot with a generated import path. [BuiltinModules] returns
 // an independent metadata map for the registry; it does not expose the embedded filesystem for modification.
 //
