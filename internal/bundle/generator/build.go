@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 )
 
-// builtArtifact is a validated archive and the metadata read from its executable.
 type builtArtifact struct {
 	record  artifact
 	archive []byte

@@ -7,14 +7,19 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/buildinfo"
 )
 
-// debug/macho leaves LC_BUILD_VERSION as raw bytes. Its layout and platform
-// identifiers are defined in Apple's mach-o/loader.h.
+// These are Mach-O format identifiers, not dependency versions. Deployment
+// versions come from LC_BUILD_VERSION and Taskfile's macos_version instead.
 const (
 	machoBuildVersion  = 0x32
 	machoPlatformMacOS = 1
 )
 
 func validateSocketVMNetDeployment(file *macho.File) error {
+	baseline, err := buildinfo.MinimumMacOS()
+	if err != nil {
+		return err
+	}
+
 	var minimum uint32
 
 	for _, command := range file.Loads {
@@ -42,9 +47,9 @@ func validateSocketVMNetDeployment(file *macho.File) error {
 		return fmt.Errorf("%w: missing macOS deployment target", ErrVMNetArchive)
 	}
 
-	if minimum > buildinfo.MinimumMacOSMajor<<16 {
-		return fmt.Errorf("%w: requires %d.%d.%d, supported baseline is %d.0",
-			ErrVMNetDeployment, minimum>>16, minimum>>8&0xff, minimum&0xff, buildinfo.MinimumMacOSMajor)
+	if buildinfo.MacOSVersion(minimum) > baseline {
+		return fmt.Errorf("%w: requires %s, supported baseline is %s",
+			ErrVMNetDeployment, buildinfo.MacOSVersion(minimum), baseline)
 	}
 
 	return nil

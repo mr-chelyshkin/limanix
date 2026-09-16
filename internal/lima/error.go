@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
-
-	"github.com/mr-chelyshkin/limanix/internal/buildinfo"
 )
 
 // Adapter errors distinguish host capability, ownership, metadata, and launch
@@ -28,7 +26,7 @@ var (
 	ErrMacOSRequired            = errors.New("limanix VM operations require macOS")
 	ErrMissingSSH               = errors.New("make the system SSH client available in PATH")
 	ErrMissingVZ                = errors.New("this Limanix build does not include the native macOS VZ driver")
-	ErrOldMacOS                 = fmt.Errorf("limanix requires macOS %d or newer", buildinfo.MinimumMacOSMajor)
+	ErrOldMacOS                 = errors.New("host macOS is older than this build's minimum")
 	ErrRosetta                  = errors.New("this Limanix binary is running under Rosetta on Apple Silicon; use limanix-arm64 for VM operations")
 )
 

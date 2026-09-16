@@ -10,10 +10,7 @@ import (
 	"github.com/lima-vm/lima/v2/pkg/networks"
 )
 
-// validateRootPath reuses Lima's no-symlink, root-owner and write-permission checks.
 func validateRootPath(path string) error {
-	// Validate also checks varRun's nearest existing ancestor. An empty value
-	// resolves to "."; use the filesystem root when checking an unrelated path.
 	cfg := networks.Config{Paths: networks.Paths{
 		SocketVMNet: path,
 		VarRun:      "/",

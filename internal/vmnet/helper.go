@@ -10,9 +10,6 @@ import (
 
 const helperProbeTimeout = 5 * time.Second
 
-// checkHelper lets the host loader verify a secure installed executable, including
-// universal binaries. --version exits without opening a network or requiring root.
-// An incompatible administrator-managed installation is reported, never replaced.
 func checkHelper(ctx context.Context, path string) error {
 	probe, cancel := context.WithTimeout(ctx, helperProbeTimeout)
 	defer cancel()

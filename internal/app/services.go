@@ -18,12 +18,12 @@ import (
 )
 
 // Services is the lazy composition root for one CLI invocation.
-// Its zero value is not usable; construct Services with New.
 type Services struct {
 	input       io.Reader
 	output      io.Writer
 	diagnostics io.Writer
-	store       func() (*state.Store, error)
+
+	store func() (*state.Store, error)
 }
 
 // New retains streams without initializing host services.
@@ -32,15 +32,16 @@ func New(input io.Reader, output, diagnostics io.Writer) *Services {
 		input:       input,
 		output:      output,
 		diagnostics: diagnostics,
-		store: sync.OnceValues(func() (*state.Store, error) {
-			return state.NewStore("")
-		}),
+
+		store: sync.OnceValues(
+			func() (*state.Store, error) {
+				return state.NewStore("")
+			},
+		),
 	}
 }
 
 // Manager assembles VM lifecycle services after checking the native architecture.
-// Returned errors describe host compatibility or state-path resolution failures,
-// not programming errors in the service wiring passed to vm.New.
 func (s *Services) Manager() (*vm.Manager, error) {
 	host, err := lima.HostArchitecture()
 	if err != nil {

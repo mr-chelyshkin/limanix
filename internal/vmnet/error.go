@@ -2,7 +2,6 @@ package vmnet
 
 import "errors"
 
-// Setup errors distinguish missing authorization from unsafe host state.
 var (
 	ErrMacOS             = errors.New("socket_vmnet setup requires macOS")
 	ErrRunAsUser         = errors.New("run network setup as your regular user; Limanix requests administrator access only for installation")

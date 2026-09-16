@@ -76,13 +76,46 @@ target is macOS 26.0 and is checked in each binary's Mach-O metadata. It does no
 need Docker. `RELEASE_TAG` sets the embedded release version; an unset value keeps
 the development version.
 
-`internal/buildinfo.MinimumMacOSMajor`, the native deployment target, and the
-documented host minimum describe the same baseline. Helper packaging rejects
-archives whose Mach-O metadata requires a newer macOS release. Both helper
-architectures use pinned upstream archives; no local C compilation is required.
-When updating Lima or socket_vmnet, recheck this baseline and the real QEMU
-lifecycle before changing the pinned versions. A new upstream release does not
-automatically change the project's minimum macOS version.
+### Build inputs and dependency updates
+
+Taskfile is the source of truth for `macos_version` and the `socket_vmnet` map.
+The latter groups the helper version with SHA-256 digests and byte sizes for both
+host architectures. These values are not duplicated as defaults in Go source.
+Shared `build_flags` pass them through linker `-X` to the helper generator,
+application and tests. Task's [map variables](https://taskfile.dev/docs/guide#variables)
+keep the archive pins together; JSON is their transport to Go, not another config file.
+
+`macos_version` also sets the compiler deployment target. Go checks the complete
+major/minor/patch version, not just its major number. Helper packaging rejects
+an executable requiring a newer OS than this baseline. Both helper architectures
+use pinned upstream archives; no local C compilation is required.
+
+To update socket_vmnet:
+
+1. Select a release from [upstream](https://github.com/lima-vm/socket_vmnet/releases).
+2. Update `socket_vmnet.version` and both archive digests and sizes together in
+   Taskfile. Verify the digests against the release's `SHA256SUMS` and downloaded
+   archives; the generator checks the pinned bytes before reading their contents.
+3. Run `task --yes ci/test ci/build`. Archive filenames and URLs are derived from
+   the selected version; stale or mismatched archives cannot pass validation.
+4. Verify real QEMU startup, networking and shutdown before publishing the release.
+
+Changing `macos_version` follows the same checks and requires reviewing the
+documented host requirements. Changing a number does not make an existing helper
+support an older system. A newer helper does not silently raise the minimum.
+
+Use these Task tasks for configured builds. Direct `go run ./cmd/bundle-socketvmnet`
+without the build flags fails with an explicit error. An unconfigured application
+can still show help/version, but VM preflight and helper installation reject
+missing build inputs instead of guessing defaults. Plain Go compilation does not
+imply that a release artifact has passed packaging checks.
+
+The Go code retains protocol constants: Mach-O load-command/platform identifiers,
+CPU mappings and upstream archive naming. These are format contracts, not release
+versions. Their relationships are documented beside the corresponding checks in
+`internal/buildinfo/platform.go` and `internal/bundle/socketvmnet_*.go`.
+If a new release changes these contracts or its Lima integration, updating
+Taskfile pins alone is insufficient: the corresponding adapter must change too.
 
 Vulnerability checks and tests run separately through `ci/vuln` and `ci/test`;
 `ci/build` does not invoke them. `ci/vuln` scans both the local Go packages and

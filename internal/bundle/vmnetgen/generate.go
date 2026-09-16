@@ -8,13 +8,23 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/mr-chelyshkin/limanix/internal/buildinfo"
 	"github.com/mr-chelyshkin/limanix/internal/bundle"
 	"github.com/mr-chelyshkin/limanix/internal/filesystem"
 )
 
 // Generate publishes verified upstream archives to the embedded resources directory.
 func Generate(ctx context.Context, root string, diagnostics io.Writer) error {
-	root, err := filepath.Abs(root)
+	if _, err := buildinfo.MinimumMacOS(); err != nil {
+		return err
+	}
+
+	targets, err := bundle.SocketVMNetTargets()
+	if err != nil {
+		return err
+	}
+
+	root, err = filepath.Abs(root)
 	if err != nil {
 		return err
 	}
@@ -24,7 +34,7 @@ func Generate(ctx context.Context, root string, diagnostics io.Writer) error {
 		logger    = log.New(diagnostics, "bundle-socketvmnet: ", 0)
 	)
 
-	for _, target := range bundle.SocketVMNetTargets() {
+	for _, target := range targets {
 		if err = ctx.Err(); err != nil {
 			return err
 		}

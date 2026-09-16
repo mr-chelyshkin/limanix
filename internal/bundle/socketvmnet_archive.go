@@ -15,7 +15,6 @@ import (
 )
 
 // DecodeSocketVMNet checks pinned archive bytes before reading any tar contents.
-// Named members are read into memory; archive paths are never extracted to disk.
 func DecodeSocketVMNet(target SocketVMNetTarget, archive []byte) (payload SocketVMNetPayload, failure error) {
 	if int64(len(archive)) != target.Size || fmt.Sprintf("%x", sha256.Sum256(archive)) != target.SHA256 {
 		return SocketVMNetPayload{}, fmt.Errorf("%w: %s", ErrVMNetArchive, target.Filename)
@@ -41,6 +40,8 @@ func DecodeSocketVMNet(target SocketVMNetTarget, archive []byte) (payload Socket
 	return payload, nil
 }
 
+// readSocketVMNet depends on upstream's /opt/socket_vmnet archive layout.
+// A release changing these members needs an adapter change, not just new Taskfile pins.
 func readSocketVMNet(reader *tar.Reader) (SocketVMNetPayload, error) {
 	var payload SocketVMNetPayload
 

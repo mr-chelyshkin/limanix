@@ -1,16 +1,18 @@
 // Package bundle supplies the embedded Linux guest agents and macOS network helper.
 //
-// Lima's startup API needs a file path, but the agents are stored inside the
-// Limanix executable. [Cache] selects and validates the compressed payload,
-// then makes it available as a private host file. Startup does not install or
-// download an external guest agent.
+// Lima's startup API needs a file path, but the agents are stored inside the Limanix executable.
+// [Cache] selects and validates the compressed payload, then makes it available as a private host file.
+// Startup does not install or download an external guest agent.
 //
-// [SocketVMNet] selects a pinned upstream release by host architecture, verifies
-// its archive, Mach-O architecture and deployment target, and returns
-// executable/license bytes. Unlike
+// [SocketVMNet] selects a pinned upstream release by host architecture, verifies its archive, Mach-O architecture
+// and deployment target, and returns executable/license bytes. Unlike
 // guest agents, the network helper is never installed in a user cache: package
 // vmnet owns its administrator-approved installation into a protected host path.
 // cmd/bundle-socketvmnet and the vmnetgen subpackage prepare the release archives.
+// Taskfile's socket_vmnet map owns the version, digests and sizes. Its shared
+// linker flags supply the generator and application; [SocketVMNetTargets] checks
+// these inputs and derives filenames. Updating only a version cannot validate
+// an archive against the previous release's digest.
 //
 // # Build-time and runtime paths
 //

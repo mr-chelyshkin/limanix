@@ -1,7 +1,7 @@
 // Package generator builds the Linux guest-agent archives embedded by internal/bundle.
 //
-// [Generate] is the implementation behind cmd/bundle-guestagent. It runs at
-// development/build time, not when a user starts a VM.
+// [Generate] is the implementation behind cmd/bundle-guestagent.
+// It runs at development/build time, not when a user starts a VM.
 //
 // # Build and reuse pipeline
 //
@@ -17,15 +17,12 @@
 //	                                                     ↓
 //	                                 publish archives → publish manifest last
 //
-// Lima must be a versioned, unreplaced module. Expected dependencies come from
-// the guest-agent package graph, not a digest of the application's whole go.mod.
-// Compiler discovery may select a Go toolchain; subsequent commands pin its
-// executable, GOROOT, and GOTOOLCHAIN=local. Build environment overrides are
-// filtered explicitly in environment.go.
+// Lima must be a versioned, unreplaced module. Expected dependencies come from the guest-agent package graph,
+// not a digest of the application's whole go.mod. Compiler discovery may select a Go toolchain; subsequent commands
+// pin its executable, GOROOT, and GOTOOLCHAIN=local. Build environment overrides are filtered explicitly in environment.go.
 //
-// Both Linux arm64 and amd64 executables are checked for ELF architecture and
-// absence of PT_INTERP. Go version, dependencies, and build settings are read
-// from each executable's build information and compared with the plan.
+// Both Linux arm64 and amd64 executables are checked for ELF architecture and absence of PT_INTERP. Go version, dependencies,
+// and build settings are read from each executable's build information and compared with the plan.
 // An unverifiable source checksum prevents asset reuse.
 //
 // # Publication and diagnostics

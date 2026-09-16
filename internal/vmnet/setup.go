@@ -31,7 +31,6 @@ func New(input io.Reader, diagnostics io.Writer) *Setup {
 }
 
 // Ensure reuses a secure Lima setup or explicitly requests its installation.
-// Noninteractive calls return ErrSetupRequired rather than starting sudo.
 func (s *Setup) Ensure(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -101,8 +100,6 @@ func (s *Setup) confirm(ctx context.Context, cfg networks.Config, reason error) 
 	}
 }
 
-// readAnswer lets cancellation finish the CLI while the terminal is still waiting.
-// The buffered result channel does not retain a sender when the context wins.
 func readAnswer(ctx context.Context, input io.Reader) (string, error) {
 	type result struct {
 		answer string
@@ -134,8 +131,6 @@ func (s *Setup) install(ctx context.Context, cfg networks.Config) error {
 		return err
 	}
 
-	// sudo reads the password from the terminal, never from this JSON stream.
-	// No persistent sudo rule authorizes this command or the Limanix executable.
 	command := exec.CommandContext(ctx, "/usr/bin/sudo", "--user=root", "--group=wheel", "--", executable, "vmnet-install")
 	command.Stdin = bytes.NewReader(snapshot)
 	command.Stdout = s.diagnostics

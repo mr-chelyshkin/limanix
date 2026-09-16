@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/mr-chelyshkin/limanix/internal/buildinfo"
@@ -68,6 +67,11 @@ func RequireMacOS(ctx context.Context) error {
 		return ErrMacOSRequired
 	}
 
+	minimum, err := buildinfo.MinimumMacOS()
+	if err != nil {
+		return err
+	}
+
 	query, cancel := queryContext(ctx)
 	defer cancel()
 
@@ -81,13 +85,12 @@ func RequireMacOS(ctx context.Context) error {
 	}
 
 	actual := strings.TrimSpace(string(version))
-	major, _, _ := strings.Cut(actual, ".")
-	number, err := strconv.Atoi(major)
+	number, err := buildinfo.ParseMacOSVersion(actual)
 	if err != nil {
 		return fmt.Errorf("parse macOS version %q: %w", actual, err)
 	}
-	if number < buildinfo.MinimumMacOSMajor {
-		return fmt.Errorf("%w; found %s", ErrOldMacOS, actual)
+	if number < minimum {
+		return fmt.Errorf("%w: need %s or newer, found %s", ErrOldMacOS, minimum, actual)
 	}
 
 	return ctx.Err()

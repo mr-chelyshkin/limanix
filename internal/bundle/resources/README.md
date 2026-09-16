@@ -1,10 +1,14 @@
 # Packaged Lima resources
 
-`go run ./cmd/bundle-socketvmnet` downloads the pinned macOS helper release for
-arm64 and amd64. Both original tar.gz archives are embedded with their upstream
+`cmd/bundle-socketvmnet`, run by `task ci/build` or `task ci/test`, downloads the
+pinned macOS helper release for arm64 and amd64. Taskfile supplies its version,
+archive digests/sizes and minimum macOS through the shared linker flags; a direct
+invocation without them fails. Both original tar.gz archives are embedded with their upstream
 license. Packaging verifies their pinned SHA-256 digests, sizes, Mach-O architecture,
 macOS deployment target, and system-library dependencies. The supported host
-minimum is macOS 26. Runtime installation needs administrator approval.
+minimum comes from `macos_version`. Runtime installation needs administrator approval.
+For the update procedure, see **Build inputs and dependency updates** in
+`docs/pages/contributing.md`.
 
 `go run ./cmd/bundle-guestagent` builds the pinned Lima guest agent for Linux arm64 and amd64, 
 then writes deterministic gzip archives and an integrity manifest here. Packaged archives and

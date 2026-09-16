@@ -7,11 +7,9 @@ import (
 	"github.com/lima-vm/lima/v2/pkg/networks"
 )
 
-// Automatic installation uses Lima's standard protected paths. Existing secure
-// custom installations can be used, but their paths are never rewritten here.
 const (
-	helperPath  = "/opt/socket_vmnet/bin/socket_vmnet"
 	licensePath = "/opt/socket_vmnet/share/doc/socket_vmnet/LICENSE"
+	helperPath  = "/opt/socket_vmnet/bin/socket_vmnet"
 	sudoersPath = "/private/etc/sudoers.d/lima"
 	runPath     = "/private/var/run/lima"
 )
@@ -51,8 +49,6 @@ func validateInstallation(cfg networks.Config) error {
 		return ErrCustomPaths
 	}
 
-	// Lima validates identifiers, network fields and the other protected paths
-	// before the missing executable exists. Its real path is checked separately.
 	validation := cfg
 	validation.Paths.SocketVMNet = ""
 	if err := validation.Validate(); err != nil {

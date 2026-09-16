@@ -17,8 +17,6 @@ import (
 )
 
 // Install is the privileged entry point used only by the hidden vmnet-install command.
-// It reads a network configuration snapshot, not file paths or executable bytes
-// supplied by the invoking user. All executable bytes come from the signed app.
 func Install(ctx context.Context, input io.Reader, diagnostics io.Writer) (failure error) {
 	if runtime.GOOS != "darwin" {
 		return ErrMacOS
@@ -86,7 +84,6 @@ func readConfiguration(input io.Reader) (networks.Config, error) {
 func installHelper(payload bundle.SocketVMNetPayload) error {
 	_, err := os.Lstat(helperPath)
 	if err == nil {
-		// A secure pre-existing installation remains administrator-managed.
 		if err = secureFile(helperPath); err != nil {
 			return err
 		}
@@ -100,16 +97,16 @@ func installHelper(payload bundle.SocketVMNetPayload) error {
 	}
 
 	for _, path := range []string{helperPath, licensePath} {
-		if err := secureDirectory(filepath.Dir(path)); err != nil {
+		if err = secureDirectory(filepath.Dir(path)); err != nil {
 			return err
 		}
 	}
 
-	if err := filesystem.WriteFileAtomic(licensePath, payload.License, 0o644); err != nil {
+	if err = filesystem.WriteFileAtomic(licensePath, payload.License, 0o644); err != nil {
 		return err
 	}
 
-	if err := filesystem.WriteFileAtomic(helperPath, payload.Executable, 0o755); err != nil {
+	if err = filesystem.WriteFileAtomic(helperPath, payload.Executable, 0o755); err != nil {
 		return err
 	}
 

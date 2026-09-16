@@ -8,17 +8,31 @@ includes:
 
 vars:
   hugo_version: '0.166.0'
+  macos_version: '26.0'
+  socket_vmnet:
+    map:
+      version: '1.2.2'
+      archives:
+        arm64:
+          sha256: c7bf62308fbcfdc29bdfb8373c9b1951f7ac2396446e4390919796a94972e6dc
+          size: 21254
+        amd64:
+          sha256: 2968a82c97e692c2d36f87230152e8018e00589c1b598e8257775adfe83800a1
+          size: 20212
+  build_flags: >-
+    -X 'github.com/mr-chelyshkin/limanix/internal/buildinfo.MinimumMacOSVersion={{.macos_version}}'
+    -X 'github.com/mr-chelyshkin/limanix/internal/bundle.SocketVMNetVersion={{.socket_vmnet.version}}'
+    -X 'github.com/mr-chelyshkin/limanix/internal/bundle.socketVMNetArchives={{.socket_vmnet.archives | toJson}}'
 
 tasks:
   _build/darwin:
     internal: true
     vars:
       binary: 'bin/limanix-{{.TARGET_ARCH}}'
-      macos_min: '26.0'
     env:
-      CGO_CFLAGS: '-mmacosx-version-min={{.macos_min}}'
-      CGO_LDFLAGS: '-mmacosx-version-min={{.macos_min}}'
-      MACOSX_DEPLOYMENT_TARGET: '{{.macos_min}}'
+      CGO_CFLAGS: '-mmacosx-version-min={{.macos_version}}'
+      CGO_LDFLAGS: '-mmacosx-version-min={{.macos_version}}'
+      MACOSX_DEPLOYMENT_TARGET: '{{.macos_version}}'
       GOARCH: '{{.TARGET_ARCH}}'
       CGO_ENABLED: '1'
       GOOS: darwin
@@ -33,8 +47,8 @@ tasks:
       - codesign --verify --strict {{.binary | shellQuote}}
       - |
         actual_macos=$(xcrun vtool -show-build {{.binary | shellQuote}} | awk '$1 == "minos" { print $2 }')
-        if [ "$actual_macos" != {{.macos_min | shellQuote}} ]; then
-          printf 'Unexpected macOS deployment target: %s (expected %s)\n' "$actual_macos" {{.macos_min | shellQuote}} >&2
+        if [ "$actual_macos" != {{.macos_version | shellQuote}} ]; then
+          printf 'Unexpected macOS deployment target: %s (expected %s)\n' "$actual_macos" {{.macos_version | shellQuote}} >&2
           exit 1
         fi
 
@@ -62,13 +76,13 @@ tasks:
     cmds:
       - task: golang:_go/tool
         vars:
-          CMD: go run ./cmd/bundle-socketvmnet --root .
+          CMD: go run -ldflags {{.build_flags | shellQuote}} ./cmd/bundle-socketvmnet --root .
       - task: golang:_go/tool
         vars:
           CMD: go run ./cmd/bundle-guestagent --root .
       - task: golang:test
         vars:
-          TEST_ARGS: -race -tags=osusergo ./...
+          TEST_ARGS: -race -tags=osusergo -ldflags {{.build_flags | shellQuote}} ./...
           CONTAINER_ENVS: USER=limanix
 
   ci/docs:
@@ -95,6 +109,7 @@ tasks:
         sh: go list -mod=readonly -m -f '{{`{{.Version}}`}}' {{.lima_module | shellQuote}}
       linker_flags: >-
         -s -w
+        {{.build_flags}}
         -X {{.lima_module}}/pkg/version.Version={{.lima_version}}
         {{if .release_tag}}-X github.com/mr-chelyshkin/limanix/internal/buildinfo.Version={{.release_tag}}{{end}}
     preconditions:
@@ -103,7 +118,7 @@ tasks:
       - sh: xcrun --find clang >/dev/null && xcrun --find vtool >/dev/null && command -v codesign >/dev/null
         msg: Install the Xcode command-line tools before building native binaries.
     cmds:
-      - go run ./cmd/bundle-socketvmnet --root .
+      - go run -ldflags {{.build_flags | shellQuote}} ./cmd/bundle-socketvmnet --root .
       - go run ./cmd/bundle-guestagent --root .
       - mkdir -p bin
       - for: [amd64, arm64]

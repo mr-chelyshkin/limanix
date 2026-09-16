@@ -24,8 +24,6 @@ func checkSudoers(ctx context.Context, cfg networks.Config) error {
 		return cfg.VerifySudoAccess(ctx, "")
 	}
 
-	// Use Lima's exact generated rules, without its limactl-specific CLI hints.
-	// A missing file must not trigger its sudo -k probe and clear cached credentials.
 	installed, err := os.ReadFile(cfg.Paths.Sudoers)
 	if errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("%w: %w", ErrSetupRequired, err)
@@ -47,8 +45,6 @@ func checkSudoers(ctx context.Context, cfg networks.Config) error {
 }
 
 func installSudoers(ctx context.Context, cfg networks.Config, diagnostics io.Writer) (failure error) {
-	// Lima caches its first network configuration. The installer is a separate
-	// process and loads a root-owned snapshot, never the user's mutable directory.
 	directory, err := os.MkdirTemp("/private/tmp", "limanix-vmnet-")
 	if err != nil {
 		return err
@@ -90,8 +86,6 @@ func installSudoers(ctx context.Context, cfg networks.Config, diagnostics io.Wri
 		return err
 	}
 
-	// Lima compares this file as the regular user. Rules contain no secrets;
-	// 0644 permits that read while reserving writes for root.
 	return filesystem.WriteFileAtomic(sudoersPath, []byte(rules), 0o644)
 }
 
@@ -128,7 +122,7 @@ func backupSudoers(diagnostics io.Writer) (failure error) {
 		return err
 	}
 
-	if err := secureFile(sudoersPath); err != nil {
+	if err = secureFile(sudoersPath); err != nil {
 		return err
 	}
 
@@ -137,8 +131,6 @@ func backupSudoers(diagnostics io.Writer) (failure error) {
 		return err
 	}
 
-	// sudo's includedir skips dot-prefixed names. The backup is private to root
-	// and remains available even if publication of the new rules fails.
 	backup, err := os.CreateTemp(filepath.Dir(sudoersPath), ".lima-limanix-backup-")
 	if err != nil {
 		return err

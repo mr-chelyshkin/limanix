@@ -5,4 +5,8 @@
 // library dependencies are checked before publishing. Packaging works on Linux
 // and macOS; it never runs the helper, requests root privileges, or installs host
 // networking.
+//
+// Taskfile passes its macos_version and socket_vmnet release pins through linker
+// flags before running Generate. Missing or malformed build inputs fail before
+// downloads or file writes; the same flags are linked into the application.
 package vmnetgen

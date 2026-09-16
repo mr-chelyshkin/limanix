@@ -8,12 +8,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// installationLock serializes machine-wide setup across different LIMA_HOME roots.
-// The persistent empty lock file lives in a protected directory, not in user state.
 func installationLock() (*os.File, error) {
-	const directory = "/opt/socket_vmnet"
-	const path = directory + "/.limanix-setup.lock"
-
+	const (
+		directory = "/opt/socket_vmnet"
+		path      = directory + "/.limanix-setup.lock"
+	)
 	if err := secureDirectory(directory); err != nil {
 		return nil, err
 	}
