@@ -12,8 +12,8 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/modules"
 )
 
-// Prepare copies module trees once into a generation and writes runtime ENV
-// files beside its flake, keeping their values out of flake sources and Nix store.
+// Prepare copies module trees once into a generation and writes runtime ENV files beside its flake, keeping their
+// values out of flake sources and Nix store.
 func Prepare(cfg config.Config, runtimeDir string, sources []modules.Source, uid int) (string, error) {
 	if uid <= 0 {
 		return "", ErrInvalidUID
@@ -25,23 +25,23 @@ func Prepare(cfg config.Config, runtimeDir string, sources []modules.Source, uid
 	}
 
 	flakeDir := filepath.Join(runtimeDir, "flake")
-	if err := requireNewBundle(flakeDir); err != nil {
+	if err = requireNewBundle(flakeDir); err != nil {
 		return "", err
 	}
 
-	if err := validateSources(sources); err != nil {
+	if err = validateSources(sources); err != nil {
 		return "", err
 	}
 
-	if err := filesystem.CheckDirectory(runtimeDir); err != nil {
+	if err = filesystem.CheckDirectory(runtimeDir); err != nil {
 		return "", err
 	}
 
-	if err := os.MkdirAll(runtimeDir, 0o700); err != nil {
+	if err = os.MkdirAll(runtimeDir, 0o700); err != nil {
 		return "", err
 	}
 
-	if err := copyResource("resources/base", flakeDir); err != nil {
+	if err = copyResource("resources/base", flakeDir); err != nil {
 		return "", err
 	}
 
@@ -50,11 +50,11 @@ func Prepare(cfg config.Config, runtimeDir string, sources []modules.Source, uid
 		return "", err
 	}
 
-	if err := writeRuntime(filepath.Join(flakeDir, "runtime.json"), cfg, imports, uid); err != nil {
+	if err = writeRuntime(filepath.Join(flakeDir, "runtime.json"), cfg, imports, uid); err != nil {
 		return "", err
 	}
 
-	if err := writeEnvironmentFiles(runtimeDir, serviceEnvironment, shellEnvironment); err != nil {
+	if err = writeEnvironmentFiles(runtimeDir, serviceEnvironment, shellEnvironment); err != nil {
 		return "", err
 	}
 
