@@ -9,7 +9,7 @@ next = "installation"
   type = "docs"
 +++
 
-![Limanix turtle illustration](readme-header.png)
+![Limanix penguin illustration](readme-header.png)
 
 Limanix runs your development environment in a Linux virtual machine on your
 Mac. Describe its resources, tools, shared folders, and environment in a TOML
