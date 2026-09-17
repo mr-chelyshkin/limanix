@@ -23,6 +23,20 @@
 # OS files
 .DS_Store
 
+# Terraform
+/tf/**/terraform.tfstate.d/
+/tf/**/.terraform/
+
+/tf/**/tfplan
+/tf/**/*.tfplan
+/tf/**/*.tfvars
+/tf/**/*.tfstate
+/tf/**/*.tfstate.*
+/tf/**/*.tfvars.json
+!/tf/**/*.tfvars.example
+!/tf/**/.terraform.lock.hcl
+/tf/**/.terraform.tfstate.lock.info
+
 # IDE
 .vscode/
 .idea/

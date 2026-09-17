@@ -2,6 +2,13 @@
 version: '3.53.1'
 
 includes:
+  terraform:
+    taskfile: https://raw.githubusercontent.com/mr-chelyshkin/tasks/v0.0.3/taskfiles/terraform/Taskfile.yml
+    vars:
+      TERRAFORM_VERSION: '1.15.9'
+      CONTAINER_ENVS: >-
+        AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_REGION AWS_DEFAULT_REGION
+        TF_VAR_aws_region TF_VAR_domain_name TF_VAR_site_bucket_name TF_VAR_acm_certificate_arn
   golang:
     taskfile: https://raw.githubusercontent.com/mr-chelyshkin/tasks/v0.0.3/taskfiles/golang/Taskfile.yml
     internal: false
@@ -126,6 +133,31 @@ tasks:
         vars:
           TARGET_ARCH: '{{.ITEM}}'
           LINKER_FLAGS: '{{.linker_flags}}'
+
+  ci/terraform-fmt:
+    desc: Check terraform formatting
+    cmds:
+      - task: terraform:fmt
+
+  ci/terraform-validate:
+    desc: Run terraform validation
+    cmds:
+      - task: terraform:validate
+
+  ci/terraform-plan:
+    desc: Run terraform plan
+    requires:
+      vars: [TF_STATE_BUCKET, TF_STATE_KEY, TF_STATE_REGION]
+    cmds:
+      - task: terraform:plan
+        vars:
+          INIT_ARGS: >-
+            -input=false -reconfigure -lockfile=readonly
+            -backend-config=use_lockfile=true
+            -backend-config=encrypt=true
+            {{printf "-backend-config=bucket=%s" .TF_STATE_BUCKET | shellQuote}}
+            {{printf "-backend-config=region=%s" .TF_STATE_REGION | shellQuote}}
+            {{printf "-backend-config=key=%s" .TF_STATE_KEY | shellQuote}}
 
   docs/preview:
     desc: Preview the documentation site

@@ -88,6 +88,25 @@ jobs:
         uses: mr-chelyshkin/actions/invoke-taskfile@v1
         with: { command: ci/vuln }
 
+  terraform:
+    uses: mr-chelyshkin/actions/.github/workflows/pr-terraform.yml@v1
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      terraform-role-arn: ${{ vars.AWS_TERRAFORM_DEPLOY_ROLE_ARN }}
+      aws-region: ${{ vars.AWS_REGION }}
+      environment: |
+        {
+          "TF_STATE_KEY": ${{ toJSON(vars.TF_STATE_KEY) }},
+          "TF_VAR_aws_region": ${{ toJSON(vars.AWS_REGION) }},
+          "TF_STATE_REGION": ${{ toJSON(vars.TF_STATE_REGION) }},
+          "TF_STATE_BUCKET": ${{ toJSON(vars.TF_STATE_BUCKET) }},
+          "TF_VAR_domain_name": ${{ toJSON(vars.SITE_DOMAIN_NAME) }},
+          "TF_VAR_site_bucket_name": ${{ toJSON(vars.SITE_BUCKET_NAME) }},
+          "TF_VAR_acm_certificate_arn": ${{ toJSON(vars.SITE_ACM_CERTIFICATE_ARN) }}
+        }
+
   docs:
     name: Doc build
     runs-on: ubuntu-24.04

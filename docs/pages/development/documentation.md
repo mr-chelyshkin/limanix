@@ -88,3 +88,60 @@ To choose another port:
 ```console
 task docs/preview DOCS_PORT=8001
 ```
+
+## Documentation infrastructure
+
+`tf/` defines a private S3 bucket and a CloudFront distribution, following the
+infrastructure layout of [mr-chelyshkin/site](https://github.com/mr-chelyshkin/site).
+The bucket stores the contents of `build/docs/`. CloudFront reads it through
+Origin Access Control; direct public S3 access is disabled.
+
+```text
+Browser → CloudFront (HTTPS, security headers, directory URL rewrite) → private S3
+                                                                        ↑
+                                                                   build/docs/
+```
+
+The viewer-request function resolves `/guide/modules/` and `/guide/modules` to
+`/guide/modules/index.html`. Asset paths stay unchanged. Missing objects return
+the generated `404.html` with HTTP 404, not the home page. This rewrite follows
+the [CloudFront directory-index pattern](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/example_cloudfront_functions_url_rewrite_single_page_apps_section.html).
+
+The content security policy allows Hextra's inline Mermaid initializer and
+inline styles. Scripts, stylesheets, fonts, and search data are otherwise served
+from the same origin; the portfolio's Google Analytics permissions are not copied.
+
+### Validate and plan
+
+```console
+task --yes ci/terraform-fmt
+task --yes ci/terraform-validate
+```
+
+Both commands use the shared Terraform container. Validation does not connect
+to the state backend or require AWS credentials. `tf/versions.tf` and the
+Taskfile pin Terraform; `tf/.terraform.lock.hcl` pins the AWS provider and checksums.
+
+For `task --yes ci/terraform-plan`, provide:
+
+| Input | Purpose |
+| --- | --- |
+| `TF_STATE_BUCKET`, `TF_STATE_KEY`, `TF_STATE_REGION` | Existing S3 state bucket, Limanix-specific state key, and backend region |
+| `TF_VAR_aws_region` | Region for the documentation bucket |
+| `TF_VAR_domain_name` | Documentation hostname, without a scheme or path |
+| `TF_VAR_site_bucket_name` | Globally unique documentation bucket name |
+| `TF_VAR_acm_certificate_arn` | Issued ACM certificate covering the hostname, in `us-east-1` |
+
+The Taskfile forwards exported AWS access-key credentials and these `TF_VAR_*`
+values into the container. Host AWS profiles are not mounted automatically.
+The plan task enables state encryption and S3 lock-file locking. Use a separate
+state key from the portfolio; do not reuse its state or resource names.
+
+Terraform does not create the state bucket, issue the certificate, configure
+DNS, upload documentation, or set up a deployment role. These are separate
+prerequisites or publishing steps. CloudFront requires the certificate in
+[`us-east-1`](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html).
+Outputs expose the bucket and CloudFront identifiers needed for publishing and DNS.
+Cache lifetimes follow the headers set when uploading objects.
+
+The existing GitHub workflows build documentation but do not deploy it.
