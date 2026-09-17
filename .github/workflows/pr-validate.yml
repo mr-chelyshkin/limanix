@@ -117,7 +117,7 @@ jobs:
 
   gate:
     if: always()
-    needs: [label-check, fmt, lint, test, build, vuln, docs]
+    needs: [label-check, fmt, lint, test, build, vuln, docs, terraform]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
