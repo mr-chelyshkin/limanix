@@ -94,10 +94,17 @@ tasks:
 
   ci/docs:
     desc: Build the documentation site
+    vars:
+      release_tag: '{{.RELEASE_TAG | default ""}}'
+      base_url: '{{.DOCS_BASE_URL | default ""}}'
+      linker_flags: >-
+        {{if .release_tag}}-X github.com/mr-chelyshkin/limanix/internal/buildinfo.Version={{.release_tag}}{{end}}
     cmds:
       - task: golang:_go/tool
         vars:
-          CMD: go run -tags=osusergo ./cmd/docsgen --root .
+          CMD: >-
+            go run -tags=osusergo -ldflags {{.linker_flags | trim | shellQuote}}
+            ./cmd/docsgen --root .
           CONTAINER_ENVS: USER=limanix
       - task: golang:_go/tool
         vars:
@@ -106,6 +113,7 @@ tasks:
             github.com/gohugoio/hugo@v{{.hugo_version}}
             --destination ../build/docs --cacheDir /tmp/go-cache/hugo
             --cleanDestinationDir --panicOnWarning
+            {{if .base_url}}--baseURL {{.base_url | shellQuote}}{{end}}
 
   ci/build:
     desc: Build and sign native macOS amd64 and arm64 binaries

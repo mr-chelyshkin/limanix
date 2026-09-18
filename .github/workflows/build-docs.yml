@@ -3,6 +3,14 @@ name: Build documentation
 on:
   workflow_call:
     inputs:
+      release-tag:
+        description: Version embedded in the documentation. Empty uses the source default.
+        type: string
+        default: ''
+      base-url:
+        description: Absolute URL of the published site. Empty uses Hugo configuration.
+        type: string
+        default: ''
       artifact-name:
         description: Artifact to upload after building. Empty skips the upload.
         type: string
@@ -24,6 +32,9 @@ jobs:
       - uses: actions/checkout@v6
       - name: Build documentation
         uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        env:
+          RELEASE_TAG: ${{ inputs.release-tag }}
+          DOCS_BASE_URL: ${{ inputs.base-url }}
         with: { command: ci/docs }
       - name: Upload documentation
         if: inputs.artifact-name != ''

@@ -36,6 +36,8 @@ jobs:
     needs: verify
     uses: ./.github/workflows/build-docs.yml
     with:
+      release-tag: ${{ github.ref_name }}
+      base-url: https://${{ vars.SITE_DOMAIN_NAME }}/
       artifact-name: limanix-docs-${{ github.sha }}
 
   docs-publish:
