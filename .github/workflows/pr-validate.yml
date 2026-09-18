@@ -53,14 +53,14 @@ jobs:
         }
 
   limanix-build:
-    name: limanix build
+    name: limanix
     needs: go
     uses: ./.github/workflows/build-limanix.yml
     permissions:
       contents: read
 
   docs-build:
-    name: docs build
+    name: docs
     uses: ./.github/workflows/build-docs.yml
     permissions:
       contents: read
