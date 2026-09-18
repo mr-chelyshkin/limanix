@@ -6,7 +6,7 @@
 //
 // # Generated artifacts
 //
-//	config.Default + field tags → limanix.example.toml
+//	config.Default + field tags → docs/_generated/limanix.example.toml
 //	                           └→ docs/_generated/configuration.md
 //	cli.Command                → docs/_generated/cli.md
 //	buildinfo.Version          → docs/_generated/metadata.json

@@ -5,7 +5,7 @@ go 1.27.1
 tool github.com/lima-vm/lima/v2/cmd/lima-guestagent
 
 require (
-	al.essio.dev/pkg/shellescape v1.6.0
+	al.essio.dev/pkg/shellescape v1.6.1
 	github.com/lima-vm/lima/v2 v2.2.0
 	github.com/mattn/go-isatty v0.0.22
 	github.com/opencontainers/go-digest v1.0.0

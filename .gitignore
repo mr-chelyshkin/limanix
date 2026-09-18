@@ -8,7 +8,6 @@
 /bin/
 
 # Documentation and cache
-/limanix.example.toml
 /docs/_generated/
 /docs/resources/
 /docs/public/

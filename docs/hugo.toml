@@ -16,7 +16,7 @@ disableKinds = ['taxonomy', 'term', 'RSS']
     source = '../.github/assets/readme-header.png'
     target = 'assets/readme-header.png'
   [[module.mounts]]
-    source = '../limanix.example.toml'
+    source = '_generated/limanix.example.toml'
     target = 'assets/limanix.example.toml'
   [[module.mounts]]
     source = '../examples'

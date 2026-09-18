@@ -36,7 +36,7 @@ func render() ([]document, error) {
 
 	return []document{
 		{
-			path:    "limanix.example.toml",
+			path:    "docs/_generated/limanix.example.toml",
 			content: example,
 		},
 		{

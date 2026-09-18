@@ -58,8 +58,8 @@ Go models + command tree → docsgen → reference fragments + example + metadat
 Handwritten pages + generated content + Hextra → Hugo → build/docs/
 ```
 
-`docsgen` writes `limanix.example.toml`, configuration and CLI fragments under
-`docs/_generated/`, and version metadata. These files and `build/docs/` are
+`docsgen` writes `limanix.example.toml`, configuration and CLI fragments, and
+version metadata under `docs/_generated/`. These files and `build/docs/` are
 ignored artifacts. Edit their source, not generated output.
 
 Hugo includes the generated references and downloadable examples in the static

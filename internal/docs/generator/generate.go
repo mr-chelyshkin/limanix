@@ -11,7 +11,7 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/filesystem"
 )
 
-// Generate renders the example, references, and version metadata, then writes each file atomically beneath root.
+// Generate renders the example, references, and version metadata, then writes each file atomically to root/docs/_generated.
 func Generate(ctx context.Context, root string, diagnostics io.Writer) error {
 	if err := ctx.Err(); err != nil {
 		return err

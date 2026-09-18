@@ -1,11 +1,10 @@
 // bundle-socketvmnet prepares the macOS network helper embedded in Limanix.
 //
-// It downloads the pinned socket_vmnet release for both host architectures and verifies archive.
-// Runtime setup installs the selected helper after explicit administrator approval;
-// this command never installs privileged host files.
+// It downloads socket_vmnet archives for arm64 and amd64 using the release pins supplied by Taskfile, then verifies their contents.
+// The bundle package embeds these archives in Limanix and supplies the selected helper for administrator-approved network setup.
 //
-// Taskfile supplies the release pins and macOS baseline through linker flags;
-// ci/build and ci/test run it with the same build inputs as the application.
+// Run this command through task ci/build or task ci/test to supply the required release pins and macOS baseline.
+// The --root flag selects the repository directory.
 //
 // Upstream: https://github.com/lima-vm/socket_vmnet.
 package main
