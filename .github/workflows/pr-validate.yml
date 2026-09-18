@@ -55,34 +55,15 @@ jobs:
   limanix-build:
     name: limanix build
     needs: go
-    runs-on: macos-26
+    uses: ./.github/workflows/build-limanix.yml
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
-      - name: Install Task
-        shell: bash
-        run: |
-          set -euo pipefail
-          GOBIN="$RUNNER_TEMP/task-bin" go install github.com/go-task/task/v3/cmd/task@v3.53.1
-          echo "$RUNNER_TEMP/task-bin" >> "$GITHUB_PATH"
-      - name: Build and sign macOS binaries
-        shell: bash
-        env:
-          TASK_X_REMOTE_TASKFILES: '1'
-        run: task --yes ci/build
 
   docs-build:
     name: docs build
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-      - uses: mr-chelyshkin/actions/invoke-taskfile@v1
-        with: { command: ci/docs }
+    uses: ./.github/workflows/build-docs.yml
+    permissions:
+      contents: read
 
   gate:
     if: always()

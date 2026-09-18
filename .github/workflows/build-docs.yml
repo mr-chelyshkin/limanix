@@ -1,0 +1,35 @@
+name: Build documentation
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        description: Artifact to upload after building. Empty skips the upload.
+        type: string
+        default: ''
+    outputs:
+      artifact-name:
+        description: Name of the uploaded documentation artifact.
+        value: ${{ jobs.build.outputs.artifact-name }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      artifact-name: ${{ inputs.artifact-name }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build documentation
+        uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        with: { command: ci/docs }
+      - name: Upload documentation
+        if: inputs.artifact-name != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: build/docs/
+          if-no-files-found: error
+          retention-days: 7
