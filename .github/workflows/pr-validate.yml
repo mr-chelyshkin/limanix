@@ -14,8 +14,8 @@ permissions:
   pull-requests: read
 
 jobs:
-  label-check:
-    name: Label check
+  check-label:
+    name: check label
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -36,6 +36,9 @@ jobs:
       contents: read
       id-token: write
     with:
+      cache-path: .cache/terraform/plugins
+      cache-key-prefix: limanix-terraform-v1
+      cache-dependency-path: tf/.terraform.lock.hcl
       terraform-role-arn: ${{ vars.AWS_TERRAFORM_DEPLOY_ROLE_ARN }}
       aws-region: ${{ vars.AWS_REGION }}
       environment: |
@@ -74,7 +77,7 @@ jobs:
         run: task --yes ci/build
 
   docs-build:
-    name: Docs build
+    name: docs build
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -83,7 +86,7 @@ jobs:
 
   gate:
     if: always()
-    needs: [label-check, go, tf, limanix-build, docs-build]
+    needs: [check-label, go, tf, limanix-build, docs-build]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
