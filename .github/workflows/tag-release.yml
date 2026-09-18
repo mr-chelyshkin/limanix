@@ -24,7 +24,7 @@ jobs:
           branch: main
 
   limanix-build:
-    name: limanix build
+    name: limanix
     needs: verify
     uses: ./.github/workflows/build-limanix.yml
     with:
@@ -32,14 +32,14 @@ jobs:
       artifact-name: limanix-bin-${{ github.sha }}
 
   docs-build:
-    name: docs build
+    name: docs
     needs: verify
     uses: ./.github/workflows/build-docs.yml
     with:
       artifact-name: limanix-docs-${{ github.sha }}
 
   docs-publish:
-    name: docs publish
+    name: docs
     needs: [limanix-build, docs-build]
     uses: mr-chelyshkin/actions/.github/workflows/tag-aws-s3-static-release.yml@v1
     permissions:
