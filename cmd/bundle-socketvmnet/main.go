@@ -40,7 +40,7 @@ func run(ctx context.Context, args []string, diagnostics io.Writer) int {
 		return 2
 	}
 
-	if err := vmnetgen.Generate(ctx, *root, diagnostics); err != nil {
+	if err = vmnetgen.Generate(ctx, *root, diagnostics); err != nil {
 		_, _ = fmt.Fprintln(diagnostics, "bundle-socketvmnet:", err)
 		return 1
 	}

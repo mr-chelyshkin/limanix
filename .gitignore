@@ -43,3 +43,6 @@
 # Task runner cache
 .cache/
 .task/
+
+# vendor
+vendor/
