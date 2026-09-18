@@ -14,34 +14,60 @@ permissions:
   pull-requests: read
 
 jobs:
-  label-check:
-    name: Label check
+  check-label:
+    name: check label
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: mr-chelyshkin/actions/check-changelog-label@v1
 
-  actionlint:
-    name: Actionlint
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-      - uses: docker://rhysd/actionlint:1.7.12
+  go:
+    uses: mr-chelyshkin/actions/.github/workflows/pr-golang.yml@v1
+    permissions:
+      contents: read
+    with:
+      cache-path: .cache/go
+      cache-key-prefix: limanix-go-v1
+      cache-dependency-path: '**/go.sum'
 
-  python:
-    uses: mr-chelyshkin/actions/.github/workflows/pr-python.yml@v1
+  tf:
+    uses: mr-chelyshkin/actions/.github/workflows/pr-terraform.yml@v1
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      cache-path: .cache/terraform/plugins
+      cache-key-prefix: limanix-terraform-v1
+      cache-dependency-path: tf/.terraform.lock.hcl
+      terraform-role-arn: ${{ vars.AWS_TERRAFORM_DEPLOY_ROLE_ARN }}
+      aws-region: ${{ vars.AWS_REGION }}
+      environment: |
+        {
+          "TF_STATE_KEY": ${{ toJSON(vars.TF_STATE_KEY) }},
+          "TF_VAR_aws_region": ${{ toJSON(vars.AWS_REGION) }},
+          "TF_STATE_REGION": ${{ toJSON(vars.TF_STATE_REGION) }},
+          "TF_STATE_BUCKET": ${{ toJSON(vars.TF_STATE_BUCKET) }},
+          "TF_VAR_domain_name": ${{ toJSON(vars.SITE_DOMAIN_NAME) }},
+          "TF_VAR_site_bucket_name": ${{ toJSON(vars.SITE_BUCKET_NAME) }},
+          "TF_VAR_acm_certificate_arn": ${{ toJSON(vars.SITE_ACM_CERTIFICATE_ARN) }}
+        }
 
-  docs:
-    name: Documentation
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-      - uses: mr-chelyshkin/actions/invoke-taskfile@v1
-        with: { command: ci/docs }
+  limanix-build:
+    name: limanix
+    needs: go
+    uses: ./.github/workflows/build-limanix.yml
+    permissions:
+      contents: read
+
+  docs-build:
+    name: docs
+    uses: ./.github/workflows/build-docs.yml
+    permissions:
+      contents: read
 
   gate:
     if: always()
-    needs: [label-check, actionlint, python, docs]
+    needs: [check-label, go, tf, limanix-build, docs-build]
     runs-on: ubuntu-24.04
     permissions:
       contents: read

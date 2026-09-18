@@ -1,0 +1,6 @@
+{{- $name := .Get 0 -}}
+{{- if not (in (slice "cli.md" "configuration.md") $name) -}}
+  {{- errorf "The include shortcode requires a generated reference filename: %s" .Position -}}
+{{- else -}}
+  {{- readFile (printf "_generated/%s" $name) | safeHTML -}}
+{{- end -}}

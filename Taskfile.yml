@@ -2,81 +2,188 @@
 version: '3.53.1'
 
 includes:
-  python:
-    taskfile: https://raw.githubusercontent.com/mr-chelyshkin/tasks/v0.0.2/taskfiles/python/Taskfile.yml
-    internal: true
+  terraform:
+    taskfile: https://raw.githubusercontent.com/mr-chelyshkin/tasks/v0.0.3/taskfiles/terraform/Taskfile.yml
     vars:
-      PROJECT_ROOT: .
+      TERRAFORM_VERSION: '1.15.9'
+      CONTAINER_ENVS: >-
+        AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_REGION AWS_DEFAULT_REGION
+        TF_VAR_aws_region TF_VAR_domain_name TF_VAR_site_bucket_name TF_VAR_acm_certificate_arn
+  golang:
+    taskfile: https://raw.githubusercontent.com/mr-chelyshkin/tasks/v0.0.3/taskfiles/golang/Taskfile.yml
+    internal: false
+
+vars:
+  hugo_version: '0.166.0'
+  macos_version: '26.0'
+  socket_vmnet:
+    map:
+      version: '1.2.2'
+      archives:
+        arm64:
+          sha256: c7bf62308fbcfdc29bdfb8373c9b1951f7ac2396446e4390919796a94972e6dc
+          size: 21254
+        amd64:
+          sha256: 2968a82c97e692c2d36f87230152e8018e00589c1b598e8257775adfe83800a1
+          size: 20212
+  build_flags: >-
+    -X 'github.com/mr-chelyshkin/limanix/internal/buildinfo.MinimumMacOSVersion={{.macos_version}}'
+    -X 'github.com/mr-chelyshkin/limanix/internal/bundle.SocketVMNetVersion={{.socket_vmnet.version}}'
+    -X 'github.com/mr-chelyshkin/limanix/internal/bundle.socketVMNetArchives={{.socket_vmnet.archives | toJson}}'
 
 tasks:
-  docs/serve:
-    desc: Serve documentation locally and rebuild on changes
+  _build/darwin:
+    internal: true
     vars:
-      DOCS_PORT: '{{.DOCS_PORT | default "8070"}}'
+      binary: 'bin/limanix-{{.TARGET_ARCH}}'
+    env:
+      CGO_CFLAGS: '-mmacosx-version-min={{.macos_version}}'
+      CGO_LDFLAGS: '-mmacosx-version-min={{.macos_version}}'
+      MACOSX_DEPLOYMENT_TARGET: '{{.macos_version}}'
+      GOARCH: '{{.TARGET_ARCH}}'
+      CGO_ENABLED: '1'
+      GOOS: darwin
     cmds:
-      - task: python:_uv/tool
-        vars:
-          CONTAINER_PORTS: '127.0.0.1:{{.DOCS_PORT}}:{{.DOCS_PORT}}'
-          CONTAINER_ENVS: PYTHONUNBUFFERED=1
-          CMD: >-
-            uv run --locked --group docs sphinx-autobuild
-            --host 0.0.0.0 --port {{.DOCS_PORT}}
-            --watch src/limanix --watch limanix.example.toml
-            --watch docs/conf.py --watch docs/generate.py
-            --watch docs/_static
-            --ignore '*/_generated/*'
-            -E -a -W --keep-going -c docs docs/pages build/docs
-
-  docs/generate:
-    desc: Generate the example configuration from the Python model
-    cmds:
-      - task: python:_uv/tool
-        vars:
-          CMD: uv run --locked python docs/generate.py
-
-  ci/docs:
-    desc: Check the example and build static documentation
-    cmds:
-      - task: python:_uv/tool
-        vars:
-          CMD: >-
-            sh -eu -c 'uv run --locked --group docs python -m unittest discover -s docs -p "test_*.py" &&
-            uv run --locked --group docs python docs/generate.py --check &&
-            uv run --locked --group docs sphinx-build -E -W --keep-going -b html -c docs docs/pages build/docs'
-
-  ci/fmt:
-    desc: Check Python formatting
-    cmds:
-      - task: python:fmt
+      - >-
+        go build -mod=readonly -trimpath
+        -ldflags {{.LINKER_FLAGS | trim | shellQuote}}
+        -o {{.binary | shellQuote}} ./cmd/limanix
+      - >-
+        codesign --force --sign -
+        --entitlements .github/assets/vz.entitlements {{.binary | shellQuote}}
+      - codesign --verify --strict {{.binary | shellQuote}}
+      - |
+        actual_macos=$(xcrun vtool -show-build {{.binary | shellQuote}} | awk '$1 == "minos" { print $2 }')
+        if [ "$actual_macos" != {{.macos_version | shellQuote}} ]; then
+          printf 'Unexpected macOS deployment target: %s (expected %s)\n' "$actual_macos" {{.macos_version | shellQuote}} >&2
+          exit 1
+        fi
 
   ci/lint:
-    desc: Lint Python
+    desc: Lint Go source and tests
     cmds:
-      - task: python:lint
+      - task: golang:golangci
 
-  ci/typecheck:
-    desc: Check Python types
+  ci/vuln:
+    desc: Check vulnerabilities in Limanix and its embedded Linux guest agent
     cmds:
-      - task: python:typecheck
+      - task: golang:govulncheck
+        vars:
+          VULN_ARGS: './... github.com/lima-vm/lima/v2/cmd/lima-guestagent'
+
+  ci/fmt:
+    desc: Check Go formatting
+    cmds:
+      - task: golang:gofumpt
+        vars:
+          FMT_ARGS: '-l cmd internal'
+
+  ci/test:
+    desc: Run Go tests with the race detector
+    cmds:
+      - task: golang:_go/tool
+        vars:
+          CMD: go run -ldflags {{.build_flags | shellQuote}} ./cmd/bundle-socketvmnet --root .
+      - task: golang:_go/tool
+        vars:
+          CMD: go run ./cmd/bundle-guestagent --root .
+      - task: golang:test
+        vars:
+          TEST_ARGS: -race -tags=osusergo -ldflags {{.build_flags | shellQuote}} ./...
+          CONTAINER_ENVS: USER=limanix
+
+  ci/docs:
+    desc: Build the documentation site
+    vars:
+      release_tag: '{{.RELEASE_TAG | default ""}}'
+      base_url: '{{.DOCS_BASE_URL | default ""}}'
+      linker_flags: >-
+        {{if .release_tag}}-X github.com/mr-chelyshkin/limanix/internal/buildinfo.Version={{.release_tag}}{{end}}
+    cmds:
+      - task: golang:_go/tool
+        vars:
+          CMD: >-
+            go run -tags=osusergo -ldflags {{.linker_flags | trim | shellQuote}}
+            ./cmd/docsgen --root .
+          CONTAINER_ENVS: USER=limanix
+      - task: golang:_go/tool
+        vars:
+          CMD: >-
+            env CGO_ENABLED=1 go -C docs run -tags=extended
+            github.com/gohugoio/hugo@v{{.hugo_version}}
+            --destination ../build/docs --cacheDir /tmp/go-cache/hugo
+            --cleanDestinationDir --panicOnWarning
+            {{if .base_url}}--baseURL {{.base_url | shellQuote}}{{end}}
 
   ci/build:
-    desc: Build the Python sdist and wheel
+    desc: Build and sign native macOS amd64 and arm64 binaries
+    vars:
+      release_tag: '{{.RELEASE_TAG | default ""}}'
+      lima_module: github.com/lima-vm/lima/v2
+      lima_version:
+        sh: go list -mod=readonly -m -f '{{`{{.Version}}`}}' {{.lima_module | shellQuote}}
+      linker_flags: >-
+        -s -w
+        {{.build_flags}}
+        -X {{.lima_module}}/pkg/version.Version={{.lima_version}}
+        {{if .release_tag}}-X github.com/mr-chelyshkin/limanix/internal/buildinfo.Version={{.release_tag}}{{end}}
+    preconditions:
+      - sh: test "$(uname -s)" = Darwin
+        msg: Native builds require macOS.
+      - sh: xcrun --find clang >/dev/null && xcrun --find vtool >/dev/null && command -v codesign >/dev/null
+        msg: Install the Xcode command-line tools before building native binaries.
     cmds:
-      - task: python:build
-
-  ci/package-check:
-    desc: Build and verify the installed wheel
-    cmds:
-      - task: ci/build
-      - task: python:package/check
+      - go run -ldflags {{.build_flags | shellQuote}} ./cmd/bundle-socketvmnet --root .
+      - go run ./cmd/bundle-guestagent --root .
+      - mkdir -p bin
+      - for: [amd64, arm64]
+        task: _build/darwin
         vars:
-          PACKAGE_COMMAND: python -m unittest discover -s /workspace/tests
+          TARGET_ARCH: '{{.ITEM}}'
+          LINKER_FLAGS: '{{.linker_flags}}'
 
-  ci/tag:
-    desc: Check RELEASE_TAG against the package version
+  ci/terraform-fmt:
+    desc: Check terraform formatting
+    cmds:
+      - task: terraform:fmt
+
+  ci/terraform-validate:
+    desc: Run terraform validation
+    cmds:
+      - task: terraform:validate
+
+  ci/terraform-plan:
+    desc: Run terraform plan
     requires:
-      vars: [RELEASE_TAG]
+      vars: [TF_STATE_BUCKET, TF_STATE_KEY, TF_STATE_REGION]
     cmds:
-      - task: python:tag/check
+      - task: terraform:plan
         vars:
-          RELEASE_TAG: '{{.RELEASE_TAG}}'
+          INIT_ARGS: >-
+            -input=false -reconfigure -lockfile=readonly
+            -backend-config=use_lockfile=true
+            -backend-config=encrypt=true
+            {{printf "-backend-config=bucket=%s" .TF_STATE_BUCKET | shellQuote}}
+            {{printf "-backend-config=region=%s" .TF_STATE_REGION | shellQuote}}
+            {{printf "-backend-config=key=%s" .TF_STATE_KEY | shellQuote}}
+
+  docs/preview:
+    desc: Preview the documentation site
+    vars:
+      docs_port: '{{.DOCS_PORT | default "8060"}}'
+    cmds:
+      - task: golang:_go/tool
+        vars:
+          CMD: go run -tags=osusergo ./cmd/docsgen --root .
+          CONTAINER_ENVS: USER=limanix
+      - task: golang:_go/tool
+        vars:
+          CMD: >-
+            env CGO_ENABLED=1 go -C docs run -tags=extended
+            github.com/gohugoio/hugo@v{{.hugo_version}} server
+            --renderToMemory --cacheDir /tmp/go-cache/hugo
+            --bind 0.0.0.0 --port {{.docs_port | shellQuote}}
+            --baseURL {{printf "http://127.0.0.1:%s/" .docs_port | shellQuote}}
+            --disableFastRender
+          CONTAINER_PORTS: '127.0.0.1:{{.docs_port}}:{{.docs_port}}'
+          CONTAINER_ENVS: TINI_KILL_PROCESS_GROUP=1
