@@ -23,6 +23,11 @@ have run.
 
 ## Embedded assets
 
+`cmd/bundle-modules` downloads the `limanix_modules_version` tag from Taskfile.
+It validates module entry points, metadata, archive paths, and file types,
+then packages the catalog and upstream license as `internal/nixos/resources/modules.zip`.
+An existing valid archive for the same repository and tag is reused without a download.
+
 `cmd/bundle-guestagent` builds Linux agents from the repository's pinned Lima
 dependency. It verifies an existing bundle before reuse and rebuilds when its
 dependencies, compiler, build settings, or contents differ.
@@ -43,6 +48,7 @@ toolchain before compiling the application.
 | Lima integration | Go module dependency in `go.mod`. |
 | macOS minimum | `macos_version` in `Taskfile.yml`. |
 | socket_vmnet version, archive hashes, and byte sizes | `socket_vmnet` map in `Taskfile.yml`. |
+| Standard NixOS module catalog | `limanix_modules_version` Git tag in `Taskfile.yml`. |
 | nixos-lima integration and image release | `internal/nixos/resources/base/flake.nix` and `flake.lock`. |
 | Base-image hashes | `internal/nixos/image.go`. |
 
@@ -55,6 +61,27 @@ Use the configured tasks for release builds. Direct
 `go run ./cmd/bundle-socketvmnet` without those flags fails with an explicit
 error. An unconfigured application can show help and version, but VM preflight
 and helper installation reject missing build inputs.
+
+## Update the standard modules
+
+1. Publish a new tag in [limanix-modules](https://github.com/mr-chelyshkin/limanix-modules).
+   Each module lives in `modules/<name>/default.nix`, with its description in
+   `module.toml` alongside it. Names and descriptions are read from this catalog.
+2. Set `limanix_modules_version` in Taskfile to that exact tag, including any prefix.
+3. Run `task --yes ci/test ci/build` and verify the changed modules in a VM.
+
+No Go change is needed to add a module that follows this contract. Changing the
+catalog format or guest integration contract may require code changes.
+
+The source is pinned by tag, not SHA. Do not move published tags: cached builds
+reuse the catalog for that tag, while a fresh checkout downloads its current
+contents. The ZIP comment records the source repository: archives from another
+repository are not reused. ZIP integrity checks detect corruption, not upstream tag changes.
+
+The archive is a build artifact, not a separately installed user catalog.
+`ci/lint`, `ci/vuln`, `ci/test`, `ci/docs`, and `docs/preview` prepare it in the Go
+container; `ci/build` prepares it natively. A direct Go build requires the
+archive to have been generated first.
 
 ## Update socket_vmnet
 

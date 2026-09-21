@@ -98,9 +98,18 @@ func NewModuleName(value string) (ModuleName, error) {
 	return ModuleName(value), nil
 }
 
-// NewModuleID validates a built-in or third-party module reference.
+// NewModuleID validates a CATALOG:NAME reference without checking catalog membership.
 func NewModuleID(value string) (ModuleID, error) {
-	if _, err := NewModuleName(strings.TrimPrefix(value, "third-party:")); err != nil {
+	namespace, name, qualified := strings.Cut(value, ":")
+	if !qualified {
+		return "", ErrInvalidModuleID
+	}
+
+	if _, err := NewModuleName(namespace); err != nil {
+		return "", err
+	}
+
+	if _, err := NewModuleName(name); err != nil {
 		return "", err
 	}
 
@@ -109,12 +118,19 @@ func NewModuleID(value string) (ModuleID, error) {
 
 // Name returns the module name without its source namespace.
 func (id ModuleID) Name() ModuleName {
-	return ModuleName(strings.TrimPrefix(string(id), "third-party:"))
+	_, name, _ := strings.Cut(string(id), ":")
+	return ModuleName(name)
+}
+
+// Namespace returns the catalog name that qualifies the module.
+func (id ModuleID) Namespace() string {
+	namespace, _, _ := strings.Cut(string(id), ":")
+	return namespace
 }
 
 // IsThirdParty reports whether the module comes from the imported registry.
 func (id ModuleID) IsThirdParty() bool {
-	return strings.HasPrefix(string(id), "third-party:")
+	return id.Namespace() == "third-party"
 }
 
 // NewEnvName validates an environment variable name.

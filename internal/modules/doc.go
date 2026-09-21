@@ -1,7 +1,9 @@
 // Package modules imports trusted NixOS module trees and leases stable registry sources.
 //
-// Bundled modules are referenced by ID. Imported modules are copied beneath the state root and selected as third-party:NAME.
-// [Registry] receives bundled metadata from internal/nixos; it does not embed or evaluate Nix code.
+// Standard modules use the reserved lmx:NAME namespace.
+// Imported modules are copied beneath the state root and selected as third-party:NAME.
+// The same local name can exist in both without collision.
+// [Registry] receives standard catalog metadata from internal/nixos; it does not embed or evaluate Nix code.
 //
 // # Import and consumption
 //

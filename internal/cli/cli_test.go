@@ -250,7 +250,7 @@ func TestListJSONEmptyArraysAndDamagedRows(t *testing.T) {
 	if status != 0 || diagnostics != "" || !strings.Contains(output, "healthy") || !strings.Contains(output, "damaged") || !strings.Contains(output, "corrupt") || !strings.Contains(output, failure) {
 		t.Fatalf("damaged table row lost: %d %q %q", status, output, diagnostics)
 	}
-	registry.entries = []modules.Info{{Name: "git", Source: "bundled", Description: "Git version control."}, {Name: "third-party:broken", Source: "third-party", Error: &failure}}
+	registry.entries = []modules.Info{{Name: "lmx:git", Source: "lmx", Description: "Git version control."}, {Name: "third-party:broken", Source: "third-party", Error: &failure}}
 	status, output, diagnostics = runCLI([]string{"modules", "list", "--json"}, fakeDependencies(manager, registry))
 	if status != 0 || diagnostics != "" {
 		t.Fatal("module list failed")
@@ -259,7 +259,7 @@ func TestListJSONEmptyArraysAndDamagedRows(t *testing.T) {
 	if err := json.Unmarshal([]byte(output), &rows); err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 2 || rows[0]["name"] != "git" || rows[1]["error"] != failure {
+	if len(rows) != 2 || rows[0]["name"] != "lmx:git" || rows[1]["error"] != failure {
 		t.Fatalf("module JSON contract changed: %s", output)
 	}
 }

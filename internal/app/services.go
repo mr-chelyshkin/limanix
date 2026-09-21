@@ -57,10 +57,14 @@ func (s *Services) Manager() (*vm.Manager, error) {
 		return nil, err
 	}
 
+	registry, err := s.Registry()
+	if err != nil {
+		return nil, err
+	}
+
 	var (
-		registry = modules.NewRegistry(store, nixos.BuiltinModules())
-		agents   = bundle.New(filepath.Join(store.Root(), "runtime", "guestagents"))
-		backend  = lima.NewClient(agents.Path)
+		agents  = bundle.New(filepath.Join(store.Root(), "runtime", "guestagents"))
+		backend = lima.NewClient(agents.Path)
 	)
 
 	backend.Stdin = s.input
@@ -87,5 +91,10 @@ func (s *Services) Registry() (*modules.Registry, error) {
 		return nil, err
 	}
 
-	return modules.NewRegistry(store, nixos.BuiltinModules()), nil
+	metadata, err := nixos.SystemModules()
+	if err != nil {
+		return nil, err
+	}
+
+	return modules.NewRegistry(store, metadata), nil
 }

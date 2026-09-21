@@ -18,8 +18,17 @@
 // [BaseImage] derives the first-boot disk URL from the same locked nixos-lima release. Image digests live in image.go;
 // changing that dependency requires reviewing the partition and boot configuration in resources/base/platform.nix.
 //
-// Each selected module becomes a separate snapshot with a generated import path. [BuiltinModules] returns
-// an independent metadata map for the registry; it does not expose the embedded filesystem for modification.
+// Standard modules come from the limanix-modules release selected in Taskfile, not Go declarations.
+// cmd/bundle-modules packages their trees and module.toml descriptions as resources/modules.zip before compilation.
+// The executable reads this archive in memory; no catalog is downloaded or installed at runtime.
+//
+//	Taskfile tag → limanix-modules archive → bundle-modules → embedded modules.zip
+//	                                                            ↓ lmx:NAME selection
+//	                                                     VM generation snapshot
+//
+// Each selected module becomes a separate snapshot with a generated import path.
+// [SystemModules] returns an independent metadata map for the registry. An empty selection adds no optional modules;
+// base files are still copied.
 //
 // # Runtime environment and failure contract
 //

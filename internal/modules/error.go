@@ -10,7 +10,8 @@ import (
 var (
 	ErrAlreadyExists     = errors.New("module already exists")
 	ErrNotInstalled      = errors.New("module is not installed")
-	ErrUnknownBuiltin    = errors.New("unknown bundled module")
+	ErrUnknownSystem     = errors.New("unknown standard module")
+	ErrUnknownCatalog    = errors.New("unknown module catalog; use limanix modules list")
 	ErrInvalidDirectory  = errors.New("module must be a directory, not a symbolic link")
 	ErrInvalidEntry      = errors.New("module entry point must be a regular default.nix file")
 	ErrRecursiveCopy     = errors.New("a module cannot be copied into its own source directory")
@@ -31,8 +32,8 @@ func (err *Error) Error() string {
 		return fmt.Sprintf("module '%s' already exists; remove it before importing a replacement", err.ID)
 	case errors.Is(err.Err, ErrNotInstalled):
 		return fmt.Sprintf("module '%s' is not installed", err.ID)
-	case errors.Is(err.Err, ErrUnknownBuiltin):
-		return fmt.Sprintf("unknown bundled module %q; use limanix modules list", err.ID)
+	case errors.Is(err.Err, ErrUnknownSystem):
+		return fmt.Sprintf("unknown standard module %q; use limanix modules list", err.ID)
 	default:
 		return fmt.Sprintf("module %q: %v", err.ID, err.Err)
 	}

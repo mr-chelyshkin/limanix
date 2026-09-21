@@ -11,7 +11,7 @@ mem = "4GiB"
 disk = "10GiB"
 
 [nixos]
-modules = ["git", "rust", "neovim"]
+modules = ["lmx:git", "lmx:rust", "lmx:neovim"]
 
 [env]
 APP_ENV = "development"

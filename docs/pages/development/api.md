@@ -60,7 +60,9 @@ Hugo includes those generated files in the static documentation site.
 | `internal/hostagent` | Runs the hidden Lima host-agent subprocess, its PID lease and API socket, logging, and signal-driven shutdown. |
 | `internal/bundle` | Verifies and caches Linux guest agents; decodes embedded macOS helper archives. |
 | `internal/vmnet` | Checks Lima networking and runs confirmed privileged setup. |
-| `internal/nixos` | Embeds NixOS sources and bundled modules; copies selected modules into a generation. |
+| `internal/nixos` | Embeds the NixOS base and packaged standard catalog; copies selected modules into a generation. |
+| `internal/nixos/catalog` | Validates the catalog archive and reads module metadata and files. |
+| `internal/nixos/modulegen` | Downloads the Taskfile-selected limanix-modules tag and packages the build artifact. |
 | `internal/guest` | Applies guest configuration, starts development-user sessions, and discovers the guest address. |
 | `internal/filesystem` | Checks host paths and writes private, durable atomic files. |
 | `internal/buildinfo` | Provides release metadata and validates the configured macOS baseline. |

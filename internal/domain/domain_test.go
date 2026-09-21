@@ -16,7 +16,7 @@ func TestIdentityBoundaries(t *testing.T) {
 		{"VMName", []string{"2-rust-box", "box", strings.Repeat("a", 63)}, []string{"", "../box", "Box", "-box", "box-", "box.local", strings.Repeat("a", 64)}, func(v string) error { _, err := NewVMName(v); return err }},
 		{"Username", []string{"dev", "_dev", "rust-dev_2", strings.Repeat("a", 32)}, []string{"", "root", "limanix-admin", "2dev", "Dev", "dev:1000", "dev\x00", strings.Repeat("a", 33)}, func(v string) error { _, err := NewUsername(v); return err }},
 		{"ModuleName", []string{"my-tools", "git", "rust2"}, []string{"", "2tools", "a--b", "../tools", strings.Repeat("a", 64)}, func(v string) error { _, err := NewModuleName(v); return err }},
-		{"ModuleID", []string{"git", "third-party:my-tools"}, []string{"./tools.nix", "third-party:../tools", "third-party:", "third-party:third-party:git"}, func(v string) error { _, err := NewModuleID(v); return err }},
+		{"ModuleID", []string{"lmx:git", "work:git", "third-party:my-tools"}, []string{"git", "./tools.nix", ":git", "Lmx:git", "third-party:../tools", "third-party:", "third-party:third-party:git"}, func(v string) error { _, err := NewModuleID(v); return err }},
 		{"EnvName", []string{"TOKEN", "_TOKEN", "token2"}, []string{"", "1TOKEN", "TOKEN-NAME", "TOKEN\nNAME"}, func(v string) error { _, err := NewEnvName(v); return err }},
 	}
 	for _, tt := range tests {

@@ -9,7 +9,7 @@ type Username string
 // GuestPath is a normalized absolute path inside the guest.
 type GuestPath string
 
-// ModuleName identifies a built-in or imported NixOS module.
+// ModuleName identifies a NixOS module within its catalog.
 type ModuleName string
 
 // ModuleID includes the source namespace of a selected module.

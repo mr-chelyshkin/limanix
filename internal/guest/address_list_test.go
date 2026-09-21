@@ -65,12 +65,17 @@ func TestVMListRetainsHealthyRowsAfterAddressProbeFailure(t *testing.T) {
 		}
 	}
 	ctx := context.Background()
+	metadata, err := nixos.SystemModules()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	entries, err := vm.New(vm.Dependencies{
-		Store:   store,
-		Backend: backend,
-		Modules: modules.NewRegistry(store, nixos.BuiltinModules()),
+		Modules: modules.NewRegistry(store, metadata),
 		Homes:   &managedhome.Manager{},
 		Guest:   guest.New(backend),
+		Backend: backend,
+		Store:   store,
 		HostUID: 501,
 	}).FetchAll(ctx)
 	if err != nil || len(entries) != 2 {

@@ -42,7 +42,7 @@ mem = "4GiB"
 disk = "10GiB"
 
 [nixos]
-modules = ["git"]
+modules = ["lmx:git"]
 
 [network.ports]
 tcp = []
@@ -111,7 +111,7 @@ Change the existing `[nixos]` section in `limanix.toml`:
 
 ```toml
 [nixos]
-modules = ["git", "neovim"]
+modules = ["lmx:git", "lmx:neovim"]
 ```
 
 Apply it, then check the installed tool:

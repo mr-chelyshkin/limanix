@@ -9,15 +9,15 @@ import (
 
 // Registry keeps copied third-party source trees separate from their original checkout.
 type Registry struct {
-	store    *state.Store
-	builtins map[string]string
+	store  *state.Store
+	system map[string]string
 }
 
 // NewRegistry takes its own copy of the embedded-module metadata supplied by NixOS.
-func NewRegistry(store *state.Store, builtins map[string]string) *Registry {
+func NewRegistry(store *state.Store, system map[string]string) *Registry {
 	return &Registry{
-		store:    store,
-		builtins: maps.Clone(builtins),
+		store:  store,
+		system: maps.Clone(system),
 	}
 }
 

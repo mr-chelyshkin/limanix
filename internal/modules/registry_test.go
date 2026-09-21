@@ -57,7 +57,7 @@ func TestImportSourcesAndRemoveAreIndependentOfOriginal(t *testing.T) {
 	if err := os.RemoveAll(source); err != nil {
 		t.Fatal(err)
 	}
-	set, err := registry.Sources(ctx, []domain.ModuleID{"git", "third-party:custom"})
+	set, err := registry.Sources(ctx, []domain.ModuleID{"lmx:git", "third-party:custom"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestSourcesKeepReadLockUntilCopyCompletes(t *testing.T) {
 func TestSourcesValidateIdentifiersAndReleaseLockOnFailure(t *testing.T) {
 	registry := registryFixture(t, t.TempDir())
 	ctx := context.Background()
-	for _, value := range []domain.ModuleID{"unknown", "third-party:missing", "../escape", "third-party:../escape"} {
+	for _, value := range []domain.ModuleID{"lmx:unknown", "sys:git", "git", "work:git", "third-party:missing", "../escape", "third-party:../escape"} {
 		if _, err := registry.Sources(ctx, []domain.ModuleID{value}); err == nil {
 			t.Fatalf("accepted source %q", value)
 		}

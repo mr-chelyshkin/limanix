@@ -10,7 +10,7 @@
 // persisted data must validate it.
 //
 // [ByteSize] stores bytes internally. Configuration text and JSON encode positive whole-GiB strings.
-// [ModuleID] distinguishes bundled names from third-party:NAME; it does not establish that a module exists.
+// [ModuleID] requires CATALOG:NAME; it does not establish that a catalog or module exists.
 //
 // # Identity and operation state
 //

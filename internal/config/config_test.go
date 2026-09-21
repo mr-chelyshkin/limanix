@@ -29,7 +29,7 @@ func TestDefaultRoundTripAndIndependentCollections(t *testing.T) {
 	}
 	parsed.Env["CUSTOM"] = "changed"
 	parsed.Mounts[0].Source = "changed"
-	parsed.NixOS.Modules[0] = "changed"
+	parsed.NixOS.Modules = append(parsed.NixOS.Modules, "lmx:changed")
 	parsed.Network.Ports.TCP[0] = 9090
 	if fresh := Default(); !reflect.DeepEqual(fresh, expected) {
 		t.Fatal("default collections are shared")
@@ -117,7 +117,8 @@ func TestSemanticBoundaries(t *testing.T) {
 		{"[network.ports]\nudp=[65536]", "network.ports.udp[0]"},
 		{"[nixos]\nmodules=['./rust.nix']", "nixos.modules[0]"},
 		{"[nixos]\nmodules=['third-party:../rust']", "nixos.modules[0]"},
-		{"[nixos]\nmodules=['git','git']", "nixos.modules[1]"},
+		{"[nixos]\nmodules=['git']", "nixos.modules[0]"},
+		{"[nixos]\nmodules=['lmx:git','lmx:git']", "nixos.modules[1]"},
 		{"[[mounts]]\nsource=''\ntarget='/workspace'", "mounts[0].source"},
 		{"[[mounts]]\nsource='./project'\ntarget='./workspace'", "mounts[0].target"},
 		{"[[mounts]]\nsource='./project'\ntarget='/workspace/../etc'", "mounts[0].target"},

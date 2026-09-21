@@ -203,7 +203,7 @@ func fixture(t *testing.T) fixtureData {
 		t.Fatal(err)
 	}
 	backend := &fakeBackend{instances: make(map[string]lima.Instance)}
-	manager := testManager(store, backend)
+	manager := testManager(t, store, backend)
 	return fixtureData{root, project, store, backend, manager}
 }
 
@@ -241,7 +241,7 @@ func TestSocketPreflightLeavesHomeAndStateUnallocated(t *testing.T) {
 			f := fixture(t)
 			limaRoot := filepath.Join(f.root, "lima")
 			t.Setenv("LIMA_HOME", limaRoot)
-			manager := testManager(f.store, lima.NewClient(nil))
+			manager := testManager(t, f.store, lima.NewClient(nil))
 			cfg := f.configuration(strings.Repeat("n", test.length))
 			_, err := manager.Create(context.Background(), f.writeConfig(t, cfg))
 			if err == nil || !strings.Contains(err.Error(), test.error) {
@@ -287,7 +287,7 @@ func (f fixtureData) instanceDirectory(t *testing.T, name domain.VMName) string 
 	return directory
 }
 
-func TestCreateReadyKeepsSecretsOutOfStateAndCopiesModulesOnce(t *testing.T) {
+func TestCreateReadyKeepsSecretsOutOfStateWithNoOptionalModules(t *testing.T) {
 	f := fixture(t)
 	instance, _ := f.create(t, "sandbox")
 	if instance.Status != domain.Ready {
@@ -316,7 +316,7 @@ func TestCreateReadyKeepsSecretsOutOfStateAndCopiesModulesOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertAbsent(t, filepath.Join(generation, "sources"))
-	assertExists(t, filepath.Join(generation, "flake", "modules", "0000", "default.nix"))
+	assertAbsent(t, filepath.Join(generation, "flake", "modules"))
 	infos, err := f.manager.FetchAll(context.Background())
 	if err != nil || len(infos) != 1 || infos[0].Address != "192.0.2.10" {
 		t.Fatalf("typed listing %+v: %v", infos, err)
@@ -750,7 +750,7 @@ func TestUpdateAddsBundledAndImportedModulesToExistingVM(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := f.configuration("sandbox")
-	cfg.NixOS.Modules = []domain.ModuleID{"git", "rust", "third-party:custom"}
+	cfg.NixOS.Modules = []domain.ModuleID{"lmx:git", "lmx:rust", "third-party:custom"}
 	updated, err := f.manager.Update(context.Background(), f.writeConfig(t, cfg))
 	if err != nil || updated.Identity != first.Identity || updated.Status != domain.Ready {
 		t.Fatalf("module update %+v: %v", updated, err)
@@ -962,11 +962,17 @@ type testBackend interface {
 	guest.Client
 }
 
-func testManager(store *state.Store, backend testBackend) *Manager {
+func testManager(t *testing.T, store *state.Store, backend testBackend) *Manager {
+	t.Helper()
+	metadata, err := nixos.SystemModules()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	return New(Dependencies{
 		Store:   store,
 		Backend: backend,
-		Modules: modules.NewRegistry(store, nixos.BuiltinModules()),
+		Modules: modules.NewRegistry(store, metadata),
 		Homes:   &testHomes{},
 		Guest:   guest.New(backend),
 		HostUID: 501,

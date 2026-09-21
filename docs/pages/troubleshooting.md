@@ -145,7 +145,8 @@ silently rebooting an already-running VM. See the
 
 ## A module cannot be found or has not changed
 
-Use `limanix modules list` to check the selected identifier. Imported modules
+Use `limanix modules list` to check the selected identifier. Standard modules
+use `lmx:NAME`; bare names such as `git` are not accepted. Imported modules
 use `third-party:NAME`; `modules add` and `modules remove` take the unprefixed
 name. Import a directory containing `default.nix` before selecting it.
 

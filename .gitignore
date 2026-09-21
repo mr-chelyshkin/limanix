@@ -19,6 +19,9 @@
 /internal/bundle/resources/manifest.json
 /internal/bundle/resources/.bundle-guestagent-*/
 
+# Standard NixOS catalog downloaded by bundle-modules
+/internal/nixos/resources/modules.zip
+
 # OS files
 .DS_Store
 

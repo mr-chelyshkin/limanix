@@ -12,7 +12,7 @@ mem = "4GiB"
 disk = "10GiB"
 
 [nixos]
-modules = ["git", "third-party:dev-tools"]
+modules = ["lmx:git", "third-party:dev-tools"]
 
 [network.ports]
 tcp = []

@@ -24,7 +24,7 @@ type Home struct {
 
 // NixOS selects trusted modules included in the generated guest configuration.
 type NixOS struct {
-	Modules []domain.ModuleID `toml:"modules" json:"modules" doc:"Bundled module names (git, rust, neovim), or third-party:NAME for a module imported with limanix modules add."`
+	Modules []domain.ModuleID `toml:"modules" json:"modules" doc:"Selected modules: lmx:NAME from the embedded standard catalog, or third-party:NAME imported with limanix modules add. An empty list installs no optional modules."`
 }
 
 // Ports declares inbound guest firewall rules by transport protocol.
@@ -79,7 +79,7 @@ func Default() Config {
 			Root: "~/.limanix",
 		},
 		NixOS: NixOS{
-			Modules: []domain.ModuleID{"git"},
+			Modules: []domain.ModuleID{},
 		},
 		Network: Network{
 			Mode: "shared",

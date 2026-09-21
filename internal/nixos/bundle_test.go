@@ -2,11 +2,14 @@ package nixos
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -17,17 +20,31 @@ import (
 
 func TestEmbeddedModulesAndPinnedBaseCopied(t *testing.T) {
 	cfg := config.Default()
-	sources := []modules.Source{{ID: "git"}, {ID: "rust"}, {ID: "neovim"}}
+	metadata, err := SystemModules()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var sources []modules.Source
+	for _, name := range slices.Sorted(maps.Keys(metadata)) {
+		sources = append(sources, modules.Source{ID: domain.ModuleID("lmx:" + name)})
+	}
+
 	flake, err := Prepare(cfg, filepath.Join(t.TempDir(), "runtime"), sources, 501)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for index, source := range sources {
-		original, err := resources.ReadFile("resources/modules/" + string(source.ID) + "/default.nix")
+		files, err := systemModule(source.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		copied, err := os.ReadFile(filepath.Join(flake, "modules", []string{"0000", "0001", "0002"}[index], "default.nix"))
+
+		original, err := fs.ReadFile(files, "default.nix")
+		if err != nil {
+			t.Fatal(err)
+		}
+		copied, err := os.ReadFile(filepath.Join(flake, "modules", fmt.Sprintf("%04d", index), "default.nix"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -58,9 +75,9 @@ func TestEmbeddedModulesAndPinnedBaseCopied(t *testing.T) {
 	if release == "" || !strings.Contains(string(declaration), `"github:nixos-lima/nixos-lima/`+release+`"`) {
 		t.Fatal("nixos-lima input differs from the locked image release")
 	}
-	metadata := BuiltinModules()
-	metadata["git"] = "changed"
-	if BuiltinModules()["git"] == "changed" {
+	clear(metadata)
+	fresh, err := SystemModules()
+	if err != nil || len(fresh) == 0 {
 		t.Fatal("caller modified module metadata")
 	}
 }

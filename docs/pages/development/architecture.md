@@ -126,7 +126,7 @@ execution deadline. A failed address probe leaves that row's address empty.
 
 ## Build-time boundaries
 
-The application embeds NixOS sources, bundled modules, compressed Linux guest
+The application embeds its NixOS base, a versioned limanix-modules catalog, compressed Linux guest
 agents, and upstream socket_vmnet archives. Their generators run before Go
 compiles the binary; runtime packages do not depend on those generators.
 

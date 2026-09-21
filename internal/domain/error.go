@@ -12,6 +12,7 @@ var (
 	ErrInvalidGuestPath    = errors.New("expected an absolute guest path without '..'")
 	ErrGuestRoot           = errors.New("the guest root directory is not allowed")
 	ErrInvalidModuleName   = errors.New("expected a module name of 1 to 63 lowercase letters, digits, and single hyphens, starting with a letter")
+	ErrInvalidModuleID     = errors.New("expected a qualified module identifier: CATALOG:NAME")
 	ErrInvalidEnvName      = errors.New("expected a POSIX environment variable name")
 	ErrInvalidEnvValue     = errors.New("contains a character unsupported by guest environment files")
 	ErrInvalidArchitecture = errors.New("expected one of arm64, amd64")

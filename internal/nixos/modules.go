@@ -2,6 +2,7 @@ package nixos
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -10,29 +11,32 @@ import (
 	"github.com/mr-chelyshkin/limanix/internal/modules"
 )
 
-// BuiltinModules returns independent metadata for modules embedded in every binary.
-func BuiltinModules() map[string]string {
-	return map[string]string{
-		"git":    "Git version control.",
-		"neovim": "Neovim editor.",
-		"rust":   "Rust compiler, Cargo, rustfmt, Clippy, and rust-analyzer.",
+// SystemModules reads the embedded catalog and returns a copy of its names and descriptions.
+func SystemModules() (map[string]string, error) {
+	catalog, err := systemCatalog()
+	if err != nil {
+		return nil, err
 	}
+
+	return catalog.Modules(), nil
 }
 
 func validateSources(sources []modules.Source) error {
-	builtins := BuiltinModules()
-
 	for _, source := range sources {
 		if _, err := domain.NewModuleID(string(source.ID)); err != nil {
 			return fmt.Errorf("invalid module identifier: %w", err)
 		}
 
 		if source.Path == "" {
-			if _, ok := builtins[string(source.ID)]; !ok {
-				return fmt.Errorf("unknown bundled module %s", source.ID)
+			if _, err := systemModule(source.ID); err != nil {
+				return err
 			}
 
 			continue
+		}
+
+		if !source.ID.IsThirdParty() {
+			return fmt.Errorf("module %q: only imported modules may use a local source path", source.ID)
 		}
 
 		if err := modules.ValidateDirectory(source.Path); err != nil {
@@ -54,18 +58,39 @@ func copyModules(flakeDir string, sources []modules.Source) ([]string, error) {
 	for index, source := range sources {
 		name := fmt.Sprintf("%04d", index)
 		target := filepath.Join(flakeDir, "modules", name)
-		if source.Path == "" {
-			if err := copyResource(path.Join("resources/modules", string(source.ID)), target); err != nil {
-				return nil, err
-			}
-		} else {
-			if _, err := modules.CopyTree(source.Path, target); err != nil {
-				return nil, err
-			}
+		if err := copyModule(source, target); err != nil {
+			return nil, fmt.Errorf("copy module %q: %w", source.ID, err)
 		}
 
 		imports = append(imports, path.Join("modules", name, "default.nix"))
 	}
 
 	return imports, nil
+}
+
+func copyModule(source modules.Source, target string) error {
+	if source.Path != "" {
+		_, err := modules.CopyTree(source.Path, target)
+		return err
+	}
+
+	files, err := systemModule(source.ID)
+	if err != nil {
+		return err
+	}
+
+	return copyFiles(files, target)
+}
+
+func systemModule(id domain.ModuleID) (fs.FS, error) {
+	if id.Namespace() != "lmx" {
+		return nil, fmt.Errorf("module %q: an embedded source requires the lmx namespace", id)
+	}
+
+	catalog, err := systemCatalog()
+	if err != nil {
+		return nil, err
+	}
+
+	return catalog.Module(string(id.Name()))
 }

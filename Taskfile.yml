@@ -14,6 +14,7 @@ includes:
     internal: false
 
 vars:
+  limanix_modules_version: '0.0.1'
   hugo_version: '0.166.0'
   macos_version: '26.0'
   socket_vmnet:
@@ -59,14 +60,23 @@ tasks:
           exit 1
         fi
 
+  _bundle/modules:
+    internal: true
+    cmds:
+      - task: golang:_go/tool
+        vars:
+          CMD: go run ./cmd/bundle-modules --root . --version {{.limanix_modules_version | shellQuote}}
+
   ci/lint:
     desc: Lint Go source and tests
     cmds:
+      - task: _bundle/modules
       - task: golang:golangci
 
   ci/vuln:
     desc: Check vulnerabilities in Limanix and its embedded Linux guest agent
     cmds:
+      - task: _bundle/modules
       - task: golang:govulncheck
         vars:
           VULN_ARGS: './... github.com/lima-vm/lima/v2/cmd/lima-guestagent'
@@ -81,6 +91,7 @@ tasks:
   ci/test:
     desc: Run Go tests with the race detector
     cmds:
+      - task: _bundle/modules
       - task: golang:_go/tool
         vars:
           CMD: go run -ldflags {{.build_flags | shellQuote}} ./cmd/bundle-socketvmnet --root .
@@ -100,6 +111,7 @@ tasks:
       linker_flags: >-
         {{if .release_tag}}-X github.com/mr-chelyshkin/limanix/internal/buildinfo.Version={{.release_tag}}{{end}}
     cmds:
+      - task: _bundle/modules
       - task: golang:_go/tool
         vars:
           CMD: >-
@@ -133,6 +145,7 @@ tasks:
       - sh: xcrun --find clang >/dev/null && xcrun --find vtool >/dev/null && command -v codesign >/dev/null
         msg: Install the Xcode command-line tools before building native binaries.
     cmds:
+      - go run ./cmd/bundle-modules --root . --version {{.limanix_modules_version | shellQuote}}
       - go run -ldflags {{.build_flags | shellQuote}} ./cmd/bundle-socketvmnet --root .
       - go run ./cmd/bundle-guestagent --root .
       - mkdir -p bin
@@ -172,6 +185,7 @@ tasks:
     vars:
       docs_port: '{{.DOCS_PORT | default "8060"}}'
     cmds:
+      - task: _bundle/modules
       - task: golang:_go/tool
         vars:
           CMD: go run -tags=osusergo ./cmd/docsgen --root .

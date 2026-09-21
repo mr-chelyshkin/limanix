@@ -16,12 +16,19 @@ List the available modules:
 limanix modules list
 ```
 
-Limanix bundles `git`, `rust`, and `neovim`. For a Rust development environment,
+Standard modules use the reserved `lmx:` prefix. Their sources and descriptions
+come from [limanix-modules](https://github.com/mr-chelyshkin/limanix-modules), packaged into
+Limanix at build time. Listing a module does not install it in a VM.
+
+The default is `modules = []`: no optional modules are selected. The base NixOS
+configuration is always supplied by Limanix, independently of this list.
+
+For a Rust development environment,
 set the existing `[nixos]` section to:
 
 ```toml
 [nixos]
-modules = ["git", "rust", "neovim"]
+modules = ["lmx:git", "lmx:rust", "lmx:neovim"]
 ```
 
 Create the VM, or apply the change to an existing one:
@@ -33,6 +40,10 @@ limanix update --config limanix.toml
 List each identifier once. The array is the complete selection, not an addition
 to the previous selection. To stop selecting a module, remove its identifier
 and update the VM.
+
+Use the full identifier in every configuration: `git` must be written as
+`lmx:git`. Updating the standard catalog requires a Limanix build containing
+the new catalog; existing VM generations change only after an explicit update.
 
 ## Import your own module
 
@@ -51,7 +62,7 @@ Select the imported entry with its `third-party:` prefix:
 
 ```toml
 [nixos]
-modules = ["git", "third-party:dev-tools"]
+modules = ["lmx:git", "third-party:dev-tools"]
 ```
 
 After creating or updating the VM, verify a package provided by this module:
@@ -63,6 +74,9 @@ limanix shell example-box -- jq --version
 Import copies the whole directory. Keep relative imports and required assets
 inside that tree; symlinks and special files are rejected. The original source
 directory is not mounted or watched.
+
+The imported namespace is currently `third-party:`. For example, importing a
+module named `git` creates `third-party:git` and does not replace `lmx:git`.
 
 {{< callout type="warning" >}}
 Import only modules you trust. A module can configure the entire guest system;

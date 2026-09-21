@@ -58,15 +58,19 @@ func (r *Registry) source(selected domain.ModuleID) (Source, error) {
 	}
 
 	source := Source{ID: id}
-	if !id.IsThirdParty() {
-		if _, exists := r.builtins[string(id)]; !exists {
+	if id.Namespace() == "lmx" {
+		if _, exists := r.system[string(id.Name())]; !exists {
 			return Source{}, &Error{
 				ID:  id,
-				Err: ErrUnknownBuiltin,
+				Err: ErrUnknownSystem,
 			}
 		}
 
 		return source, nil
+	}
+
+	if !id.IsThirdParty() {
+		return Source{}, &Error{ID: id, Err: ErrUnknownCatalog}
 	}
 
 	source.Path = filepath.Join(r.directory(), string(id.Name()))

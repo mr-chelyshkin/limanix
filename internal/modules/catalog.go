@@ -23,10 +23,10 @@ type Info struct {
 
 // Available returns bundled modules and independently reports invalid catalog entries.
 func (r *Registry) Available(ctx context.Context) (entries []Info, failure error) {
-	for name, description := range r.builtins {
+	for name, description := range r.system {
 		entries = append(entries, Info{
-			Name:        name,
-			Source:      "bundled",
+			Name:        "lmx:" + name,
+			Source:      "lmx",
 			Description: description,
 		})
 	}
@@ -68,8 +68,7 @@ func (r *Registry) importedInfo(name string) Info {
 	}
 
 	if err := r.validateImport(name); err != nil {
-		message := err.Error()
-		entry.Error = &message
+		entry.Error = new(err.Error())
 	}
 
 	return entry
