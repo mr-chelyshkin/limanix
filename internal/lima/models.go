@@ -5,14 +5,24 @@ import "github.com/lima-vm/lima/v2/pkg/limatype"
 // Status is Lima's upstream instance status, restricted at the adapter boundary.
 type Status string
 
-// Recognized backend statuses mirror Lima's lifecycle, not domain.Status.
 const (
-	Unknown       Status = Status(limatype.StatusUnknown)
+	// Unknown means Lima has not determined the instance's backend state.
+	Unknown Status = Status(limatype.StatusUnknown)
+
+	// Uninitialized means the Lima configuration exists but the backend instance has not been initialized.
 	Uninitialized Status = Status(limatype.StatusUninitialized)
-	Installing    Status = Status(limatype.StatusInstalling)
-	Broken        Status = Status(limatype.StatusBroken)
-	Stopped       Status = Status(limatype.StatusStopped)
-	Running       Status = Status(limatype.StatusRunning)
+
+	// Installing means the backend is installing the guest, independently of Limanix provisioning.
+	Installing Status = Status(limatype.StatusInstalling)
+
+	// Broken means Lima detected an inspection error or an inconsistent backend state.
+	Broken Status = Status(limatype.StatusBroken)
+
+	// Stopped means Lima reports the instance as not running.
+	Stopped Status = Status(limatype.StatusStopped)
+
+	// Running means Lima reports the instance as running; it does not guarantee guest readiness.
+	Running Status = Status(limatype.StatusRunning)
 )
 
 func (status Status) valid() bool {

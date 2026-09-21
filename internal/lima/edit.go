@@ -14,7 +14,6 @@ import (
 )
 
 // Edit follows Lima's native edit validation before replacing its persistent YAML.
-// Driver defaults and constraints are checked against the actual instance, and the existing configuration stays intact when validation fails.
 func (client *Client) Edit(ctx context.Context, name, path string) (failure error) {
 	defer func() {
 		failure = operationError(ctx, "edit", failure)
