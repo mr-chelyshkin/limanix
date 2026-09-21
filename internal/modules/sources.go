@@ -27,6 +27,21 @@ func (sources *SourceSet) Close() error {
 	return sources.lock.Close()
 }
 
+// Check performs preliminary selection checks without creating state or acquiring locks.
+func (r *Registry) Check(ctx context.Context, ids []domain.ModuleID) error {
+	for _, id := range ids {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		if _, err := r.source(id); err != nil {
+			return err
+		}
+	}
+
+	return ctx.Err()
+}
+
 // Sources holds a shared registry lock while resolving selected source trees.
 func (r *Registry) Sources(ctx context.Context, ids []domain.ModuleID) (*SourceSet, error) {
 	lock, err := r.store.RegistryLock(ctx, true, state.RegistryLockTimeout)
@@ -59,7 +74,7 @@ func (r *Registry) source(selected domain.ModuleID) (Source, error) {
 
 	source := Source{ID: id}
 	if id.Namespace() == "lmx" {
-		if _, exists := r.system[string(id.Name())]; !exists {
+		if _, exists := r.system[id.Selector()]; !exists {
 			return Source{}, &Error{
 				ID:  id,
 				Err: ErrUnknownSystem,
@@ -73,7 +88,12 @@ func (r *Registry) source(selected domain.ModuleID) (Source, error) {
 		return Source{}, &Error{ID: id, Err: ErrUnknownCatalog}
 	}
 
-	source.Path = filepath.Join(r.directory(), string(id.Name()))
+	name, err := domain.NewModuleName(id.Selector())
+	if err != nil {
+		return Source{}, &Error{ID: id, Err: err}
+	}
+
+	source.Path = filepath.Join(r.directory(), string(name))
 	if err = ValidateDirectory(source.Path); err != nil {
 		return Source{}, &Error{
 			ID:  id,

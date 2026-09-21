@@ -16,7 +16,7 @@ func TestIdentityBoundaries(t *testing.T) {
 		{"VMName", []string{"2-rust-box", "box", strings.Repeat("a", 63)}, []string{"", "../box", "Box", "-box", "box-", "box.local", strings.Repeat("a", 64)}, func(v string) error { _, err := NewVMName(v); return err }},
 		{"Username", []string{"dev", "_dev", "rust-dev_2", strings.Repeat("a", 32)}, []string{"", "root", "limanix-admin", "2dev", "Dev", "dev:1000", "dev\x00", strings.Repeat("a", 33)}, func(v string) error { _, err := NewUsername(v); return err }},
 		{"ModuleName", []string{"my-tools", "git", "rust2"}, []string{"", "2tools", "a--b", "../tools", strings.Repeat("a", 64)}, func(v string) error { _, err := NewModuleName(v); return err }},
-		{"ModuleID", []string{"lmx:git", "work:git", "third-party:my-tools"}, []string{"git", "./tools.nix", ":git", "Lmx:git", "third-party:../tools", "third-party:", "third-party:third-party:git"}, func(v string) error { _, err := NewModuleID(v); return err }},
+		{"ModuleID", []string{"lmx:git", "work:git", "third-party:my-tools", "lmx:go-1.24", "lmx:my-tools-3.13"}, []string{"git", "./tools.nix", ":git", "Lmx:git", "third-party:../tools", "third-party:", "third-party:third-party:git", "lmx:go-1..24", "lmx:go-1.24rc1", "lmx:go-../escape"}, func(v string) error { _, err := NewModuleID(v); return err }},
 		{"EnvName", []string{"TOKEN", "_TOKEN", "token2"}, []string{"", "1TOKEN", "TOKEN-NAME", "TOKEN\nNAME"}, func(v string) error { _, err := NewEnvName(v); return err }},
 	}
 	for _, tt := range tests {
@@ -34,8 +34,14 @@ func TestIdentityBoundaries(t *testing.T) {
 		})
 	}
 	module, err := NewModuleID("third-party:my-tools")
-	if err != nil || module.Name() != "my-tools" || !module.IsThirdParty() {
+	if err != nil || module.Selector() != "my-tools" || !module.IsThirdParty() {
 		t.Fatalf("module reference: %v, %v", module, err)
+	}
+	for _, selector := range []string{"go-1.24", "nodejs-26", "docker-28", "my-tools-3.13", strings.Repeat("a", 63) + "-26"} {
+		versioned, err := NewModuleID("lmx:" + selector)
+		if err != nil || versioned.Selector() != selector {
+			t.Fatalf("versioned reference: %v, %v", versioned, err)
+		}
 	}
 }
 

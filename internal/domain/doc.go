@@ -10,7 +10,7 @@
 // persisted data must validate it.
 //
 // [ByteSize] stores bytes internally. Configuration text and JSON encode positive whole-GiB strings.
-// [ModuleID] requires CATALOG:NAME; it does not establish that a catalog or module exists.
+// [ModuleID] requires CATALOG:NAME[-VERSION]; it does not establish catalog membership or version availability.
 //
 // # Identity and operation state
 //

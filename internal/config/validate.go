@@ -32,10 +32,6 @@ func Validate(config Config) error {
 		return err
 	}
 
-	if err := validateModules(config.NixOS.Modules); err != nil {
-		return err
-	}
-
 	return validateMounts(config.User.Home, config.Mounts)
 }
 
@@ -46,20 +42,6 @@ func validatePorts(ports []int, protocol string) error {
 
 			return fieldError(field, "port must be between 1 and 65535")
 		}
-	}
-
-	return nil
-}
-
-func validateModules(modules []domain.ModuleID) error {
-	seen := make(map[domain.ModuleID]bool, len(modules))
-
-	for index, module := range modules {
-		if seen[module] {
-			return fieldError(fmt.Sprintf("nixos.modules[%d]", index), "duplicate module ID")
-		}
-
-		seen[module] = true
 	}
 
 	return nil

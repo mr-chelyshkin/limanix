@@ -2,13 +2,13 @@ package nixos
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 
 	"github.com/mr-chelyshkin/limanix/internal/domain"
 	"github.com/mr-chelyshkin/limanix/internal/modules"
+	"github.com/mr-chelyshkin/limanix/internal/nixos/catalog"
 )
 
 // SystemModules reads the embedded catalog and returns a copy of its names and descriptions.
@@ -58,39 +58,40 @@ func copyModules(flakeDir string, sources []modules.Source) ([]string, error) {
 	for index, source := range sources {
 		name := fmt.Sprintf("%04d", index)
 		target := filepath.Join(flakeDir, "modules", name)
-		if err := copyModule(source, target); err != nil {
+		entry, err := copyModule(source, target)
+		if err != nil {
 			return nil, fmt.Errorf("copy module %q: %w", source.ID, err)
 		}
 
-		imports = append(imports, path.Join("modules", name, "default.nix"))
+		imports = append(imports, path.Join("modules", name, entry))
 	}
 
 	return imports, nil
 }
 
-func copyModule(source modules.Source, target string) error {
+func copyModule(source modules.Source, target string) (string, error) {
 	if source.Path != "" {
 		_, err := modules.CopyTree(source.Path, target)
-		return err
+		return "default.nix", err
 	}
 
 	files, err := systemModule(source.ID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return copyFiles(files, target)
+	return files.EntryPoint, copyFiles(files, target)
 }
 
-func systemModule(id domain.ModuleID) (fs.FS, error) {
+func systemModule(id domain.ModuleID) (catalog.Module, error) {
 	if id.Namespace() != "lmx" {
-		return nil, fmt.Errorf("module %q: an embedded source requires the lmx namespace", id)
+		return catalog.Module{}, fmt.Errorf("module %q: an embedded source requires the lmx namespace", id)
 	}
 
-	catalog, err := systemCatalog()
+	stored, err := systemCatalog()
 	if err != nil {
-		return nil, err
+		return catalog.Module{}, err
 	}
 
-	return catalog.Module(string(id.Name()))
+	return stored.Module(id.Selector())
 }

@@ -67,6 +67,8 @@ and helper installation reject missing build inputs.
 1. Publish a new tag in [limanix-modules](https://github.com/mr-chelyshkin/limanix-modules).
    Each module lives in `modules/<name>/default.nix`, with its description in
    `module.toml` alongside it. Names and descriptions are read from this catalog.
+   Versioned modules also declare `default` and `versions` in that file, with
+   entry points at `modules/<name>/versions/<version>.nix`.
 2. Set `limanix_modules_version` in Taskfile to that exact tag, including any prefix.
 3. Run `task --yes ci/test ci/build` and verify the changed modules in a VM.
 

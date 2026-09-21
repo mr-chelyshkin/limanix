@@ -45,6 +45,39 @@ func sourceFixture(t *testing.T, root string) string {
 	return source
 }
 
+func TestVersionSelectionDoesNotCreateState(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "state")
+	store, err := state.NewStore(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := NewRegistry(store, map[string]string{
+		"go":        "Go (default: 1.27)",
+		"go-1.24":   "Go 1.24",
+		"go-1.27":   "Go 1.27",
+		"nodejs-26": "Node.js 26",
+		"docker-28": "Docker 28",
+	})
+	for _, ids := range [][]domain.ModuleID{
+		{"lmx:go", "lmx:go-1.24", "lmx:go-1.27"},
+		{"lmx:go-1.24", "lmx:go-1.24"},
+		{"lmx:nodejs-26", "lmx:docker-28"},
+	} {
+		if err := registry.Check(context.Background(), ids); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, id := range []domain.ModuleID{"lmx:go-1.99", "lmx:nodejs-99", "lmx:docker-29"} {
+		err = registry.Check(context.Background(), []domain.ModuleID{id})
+		if !errors.Is(err, ErrUnknownSystem) || !strings.Contains(err.Error(), string(id)) {
+			t.Fatalf("wrong unknown-selector diagnostic: %v", err)
+		}
+	}
+	if _, err := os.Stat(root); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("selection check created state: %v", err)
+	}
+}
+
 func TestImportSourcesAndRemoveAreIndependentOfOriginal(t *testing.T) {
 	registry, source := fixture(t)
 	ctx := context.Background()

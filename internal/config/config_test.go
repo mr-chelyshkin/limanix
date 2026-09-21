@@ -118,7 +118,6 @@ func TestSemanticBoundaries(t *testing.T) {
 		{"[nixos]\nmodules=['./rust.nix']", "nixos.modules[0]"},
 		{"[nixos]\nmodules=['third-party:../rust']", "nixos.modules[0]"},
 		{"[nixos]\nmodules=['git']", "nixos.modules[0]"},
-		{"[nixos]\nmodules=['lmx:git','lmx:git']", "nixos.modules[1]"},
 		{"[[mounts]]\nsource=''\ntarget='/workspace'", "mounts[0].source"},
 		{"[[mounts]]\nsource='./project'\ntarget='./workspace'", "mounts[0].target"},
 		{"[[mounts]]\nsource='./project'\ntarget='/workspace/../etc'", "mounts[0].target"},
@@ -129,6 +128,45 @@ func TestSemanticBoundaries(t *testing.T) {
 		if err == nil || !strings.HasPrefix(err.Error(), tt.field+":") {
 			t.Errorf("%q: expected %s, got %v", tt.input, tt.field, err)
 		}
+	}
+}
+
+func TestModuleSelectionPreservesVersionsAndRepeatedIdentifiers(t *testing.T) {
+	tests := []struct {
+		name    string
+		modules []domain.ModuleID
+	}{
+		{"different versions", []domain.ModuleID{"lmx:go-1.24", "lmx:go-1.25"}},
+		{"major versions", []domain.ModuleID{"lmx:nodejs-24", "lmx:nodejs-26", "lmx:docker-28"}},
+		{"repeated version", []domain.ModuleID{"lmx:go-1.24", "lmx:go-1.24"}},
+		{"default and explicit", []domain.ModuleID{"lmx:go", "lmx:go-1.27"}},
+		{"repeated unversioned", []domain.ModuleID{"lmx:git", "lmx:git"}},
+		{"repeated imported", []domain.ModuleID{"third-party:custom", "third-party:custom"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Default()
+			cfg.NixOS.Modules = tt.modules
+
+			if err := Validate(cfg); err != nil {
+				t.Fatal(err)
+			}
+
+			rendered, err := Render(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			parsed, err := Parse(rendered)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(parsed.NixOS.Modules, tt.modules) {
+				t.Fatalf("module selection changed: got %v, want %v", parsed.NixOS.Modules, tt.modules)
+			}
+		})
 	}
 }
 

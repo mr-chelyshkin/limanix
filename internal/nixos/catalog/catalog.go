@@ -5,18 +5,14 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"maps"
 	"path"
 	"regexp"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/mr-chelyshkin/limanix/internal/domain"
-	"github.com/pelletier/go-toml/v2"
 )
 
 // Repository identifies the standard catalog source in download URLs and ZIP comments.
-// Changing it invalidates archives packaged from another repository, even at the same tag.
 const Repository = "github.com/mr-chelyshkin/limanix-modules"
 
 var tagPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`)
@@ -26,7 +22,13 @@ type Catalog struct {
 	Version string
 
 	files   fs.FS
-	modules map[string]string
+	modules map[string]selection
+}
+
+// Module exposes a complete source tree and the selected NixOS entry point within it.
+type Module struct {
+	fs.FS
+	EntryPoint string
 }
 
 // ValidateVersion checks a release tag before it is used in an archive URL.
@@ -77,25 +79,36 @@ func Open(data []byte) (*Catalog, error) {
 
 // Modules returns a copy of the local module names and their descriptions.
 func (catalog *Catalog) Modules() map[string]string {
-	return maps.Clone(catalog.modules)
-}
-
-// Module returns the read-only tree belonging to one local module name.
-func (catalog *Catalog) Module(name string) (fs.FS, error) {
-	if _, exists := catalog.modules[name]; !exists {
-		return nil, fmt.Errorf("%w: %q", ErrModule, name)
+	result := make(map[string]string, len(catalog.modules))
+	for name, module := range catalog.modules {
+		result[name] = module.description
 	}
 
-	return fs.Sub(catalog.files, path.Join("modules", name))
+	return result
 }
 
-func readModules(files fs.FS) (map[string]string, error) {
+// Module resolves a local selector to its source tree and entry point.
+func (catalog *Catalog) Module(name string) (Module, error) {
+	selected, exists := catalog.modules[name]
+	if !exists {
+		return Module{}, fmt.Errorf("%w: %q", ErrModule, name)
+	}
+
+	files, err := fs.Sub(catalog.files, path.Join("modules", selected.directory))
+	if err != nil {
+		return Module{}, err
+	}
+
+	return Module{FS: files, EntryPoint: selected.entryPoint}, nil
+}
+
+func readModules(files fs.FS) (map[string]selection, error) {
 	entries, err := fs.ReadDir(files, "modules")
 	if err != nil {
 		return nil, fmt.Errorf("%w: read modules: %w", ErrMetadata, err)
 	}
 
-	result := make(map[string]string, len(entries))
+	result := make(map[string]selection, len(entries))
 
 	for _, entry := range entries {
 		name := entry.Name()
@@ -103,12 +116,18 @@ func readModules(files fs.FS) (map[string]string, error) {
 			return nil, fmt.Errorf("%w: expected a module directory, got %q", ErrMetadata, name)
 		}
 
-		description, err := readDescription(files, path.Join("modules", name))
+		metadata, err := readMetadata(files, path.Join("modules", name))
 		if err != nil {
 			return nil, fmt.Errorf("module %q: %w", name, err)
 		}
 
-		result[name] = description
+		for selector, selected := range metadata.selections(name) {
+			if _, exists := result[selector]; exists {
+				return nil, fmt.Errorf("%w: duplicate selector %q", ErrMetadata, selector)
+			}
+
+			result[selector] = selected
+		}
 	}
 
 	if len(result) == 0 {
@@ -116,36 +135,4 @@ func readModules(files fs.FS) (map[string]string, error) {
 	}
 
 	return result, nil
-}
-
-func readDescription(files fs.FS, directory string) (string, error) {
-	entry, err := fs.Stat(files, path.Join(directory, "default.nix"))
-	if err != nil {
-		return "", fmt.Errorf("%w: default.nix: %w", ErrMetadata, err)
-	}
-	if !entry.Mode().IsRegular() {
-		return "", fmt.Errorf("%w: default.nix must be a regular file", ErrMetadata)
-	}
-
-	data, err := fs.ReadFile(files, path.Join(directory, "module.toml"))
-	if err != nil {
-		return "", fmt.Errorf("%w: module.toml: %w", ErrMetadata, err)
-	}
-	if !utf8.Valid(data) {
-		return "", fmt.Errorf("%w: module.toml must be UTF-8", ErrMetadata)
-	}
-
-	var metadata struct {
-		Description string `toml:"description"`
-	}
-
-	decoder := toml.NewDecoder(bytes.NewReader(data)).DisallowUnknownFields()
-	if err = decoder.Decode(&metadata); err != nil {
-		return "", fmt.Errorf("%w: module.toml: %w", ErrMetadata, err)
-	}
-	if strings.TrimSpace(metadata.Description) == "" {
-		return "", fmt.Errorf("%w: description must not be empty", ErrMetadata)
-	}
-
-	return metadata.Description, nil
 }

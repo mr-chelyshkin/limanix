@@ -24,7 +24,7 @@ type Home struct {
 
 // NixOS selects trusted modules included in the generated guest configuration.
 type NixOS struct {
-	Modules []domain.ModuleID `toml:"modules" json:"modules" doc:"Selected modules: lmx:NAME from the embedded standard catalog, or third-party:NAME imported with limanix modules add. An empty list installs no optional modules."`
+	Modules []domain.ModuleID `toml:"modules" json:"modules" doc:"Selected modules: lmx:NAME or lmx:NAME-VERSION from the embedded catalog, or third-party:NAME imported with limanix modules add. Omitting a version selects the module default. Multiple versions and repeated identifiers are accepted; an empty list installs no optional modules."`
 }
 
 // Ports declares inbound guest firewall rules by transport protocol.

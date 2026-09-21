@@ -37,13 +37,60 @@ Create the VM, or apply the change to an existing one:
 limanix update --config limanix.toml
 ```
 
-List each identifier once. The array is the complete selection, not an addition
-to the previous selection. To stop selecting a module, remove its identifier
-and update the VM.
+The array is the complete selection, not an addition to the previous selection.
+To stop selecting a module, remove all occurrences of its identifier and update
+the VM. Repeated identifiers are accepted and preserved.
 
 Use the full identifier in every configuration: `git` must be written as
 `lmx:git`. Updating the standard catalog requires a Limanix build containing
 the new catalog; existing VM generations change only after an explicit update.
+
+## Select a toolchain version
+
+Versioned standard modules expose a default and explicit selectors:
+
+```toml
+[nixos]
+modules = ["lmx:go-1.24", "lmx:python"]
+```
+
+`lmx:go` selects the module's default; `lmx:go-1.24` selects its declared
+1.24 variant. Selectors may also use a major version, such as `lmx:nodejs-24`
+or `lmx:docker-28`. The catalog owns package versions and Nix definitions;
+Limanix selects an entry point without choosing package versions itself.
+
+Use `limanix modules list` to inspect the catalog embedded in your binary.
+Unknown selectors fail before VM preparation and direct you to that list.
+There is no fallback to the default. Imported modules retain
+their existing `default.nix` entry point; these version selectors belong to the
+standard catalog.
+
+Multiple versions can be selected together:
+
+```toml
+[nixos]
+modules = ["lmx:go-1.24", "lmx:go-1.25"]
+```
+
+The standard toolchain modules provide versioned commands and make the newest
+selected version the unqualified command:
+
+```console
+go-1.24 version
+go-1.25 version
+go version
+```
+
+In this example, `go` uses 1.25 regardless of selection order. This behavior
+belongs to the modules, not to a version manager in Limanix. See the
+[module catalog](https://github.com/mr-chelyshkin/limanix-modules/tree/main/modules)
+for exact versions and tool-specific commands.
+
+Docker configures one system Engine per VM: select `lmx:docker` or one explicit
+Docker version, not multiple Engines together.
+
+Repeated identifiers are accepted. Identical Nix package definitions still refer
+to the same derivation, not independently patchable package copies.
 
 ## Import your own module
 

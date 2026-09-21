@@ -29,28 +29,46 @@ func TestEmbeddedModulesAndPinnedBaseCopied(t *testing.T) {
 	for _, name := range slices.Sorted(maps.Keys(metadata)) {
 		sources = append(sources, modules.Source{ID: domain.ModuleID("lmx:" + name)})
 	}
+	sources = append(sources, sources...)
+	for _, source := range sources {
+		cfg.NixOS.Modules = append(cfg.NixOS.Modules, source.ID)
+	}
 
 	flake, err := Prepare(cfg, filepath.Join(t.TempDir(), "runtime"), sources, 501)
 	if err != nil {
 		t.Fatal(err)
 	}
+	var expectedImports []string
 	for index, source := range sources {
 		files, err := systemModule(source.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		original, err := fs.ReadFile(files, "default.nix")
+		original, err := fs.ReadFile(files, files.EntryPoint)
 		if err != nil {
 			t.Fatal(err)
 		}
-		copied, err := os.ReadFile(filepath.Join(flake, "modules", fmt.Sprintf("%04d", index), "default.nix"))
+		entry := filepath.Join("modules", fmt.Sprintf("%04d", index), files.EntryPoint)
+		expectedImports = append(expectedImports, filepath.ToSlash(entry))
+		copied, err := os.ReadFile(filepath.Join(flake, entry))
 		if err != nil {
 			t.Fatal(err)
 		}
 		if string(copied) != string(original) {
 			t.Fatal("embedded module changed while copying")
 		}
+	}
+	runtimeData, err := os.ReadFile(filepath.Join(flake, "runtime.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var runtime runtimeConfig
+	if err := json.Unmarshal(runtimeData, &runtime); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(runtime.Modules, expectedImports) {
+		t.Fatalf("selected entry points: got %v, want %v", runtime.Modules, expectedImports)
 	}
 	lock, err := os.ReadFile(filepath.Join(flake, "flake.lock"))
 	if err != nil {

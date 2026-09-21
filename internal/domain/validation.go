@@ -8,10 +8,11 @@ import (
 )
 
 var (
-	vmNamePattern     = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
-	usernamePattern   = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
-	moduleNamePattern = regexp.MustCompile(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`)
-	envNamePattern    = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+	vmNamePattern        = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
+	usernamePattern      = regexp.MustCompile(`^[a-z_][a-z0-9_-]{0,31}$`)
+	moduleNamePattern    = regexp.MustCompile(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`)
+	moduleVersionPattern = regexp.MustCompile(`^[0-9]+(?:\.[0-9]+)*$`)
+	envNamePattern       = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
 // ValidateText checks string boundaries without disclosing its content in errors.
@@ -98,7 +99,7 @@ func NewModuleName(value string) (ModuleName, error) {
 	return ModuleName(value), nil
 }
 
-// NewModuleID validates a CATALOG:NAME reference without checking catalog membership.
+// NewModuleID validates CATALOG:NAME[-VERSION] without checking catalog membership.
 func NewModuleID(value string) (ModuleID, error) {
 	namespace, name, qualified := strings.Cut(value, ":")
 	if !qualified {
@@ -109,17 +110,42 @@ func NewModuleID(value string) (ModuleID, error) {
 		return "", err
 	}
 
-	if _, err := NewModuleName(name); err != nil {
+	base, version := splitModuleVersion(name)
+	if _, err := NewModuleName(base); err != nil {
 		return "", err
+	}
+
+	if version != "" {
+		if err := ValidateModuleVersion(version); err != nil {
+			return "", err
+		}
 	}
 
 	return ModuleID(value), nil
 }
 
-// Name returns the module name without its source namespace.
-func (id ModuleID) Name() ModuleName {
+// Selector returns the local module identifier, including an optional version.
+func (id ModuleID) Selector() string {
 	_, name, _ := strings.Cut(string(id), ":")
-	return ModuleName(name)
+	return name
+}
+
+// ValidateModuleVersion checks a numeric selector.
+func ValidateModuleVersion(version string) error {
+	if len(version) > 63 || !moduleVersionPattern.MatchString(version) {
+		return ErrInvalidModuleVersion
+	}
+
+	return nil
+}
+
+func splitModuleVersion(name string) (string, string) {
+	index := strings.LastIndexByte(name, '-')
+	if index < 0 || !moduleVersionPattern.MatchString(name[index+1:]) {
+		return name, ""
+	}
+
+	return name[:index], name[index+1:]
 }
 
 // Namespace returns the catalog name that qualifies the module.

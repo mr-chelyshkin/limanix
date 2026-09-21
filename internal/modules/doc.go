@@ -1,9 +1,10 @@
 // Package modules imports trusted NixOS module trees and leases stable registry sources.
 //
-// Standard modules use the reserved lmx:NAME namespace.
+// Standard modules use lmx:NAME or a catalog-declared lmx:NAME-VERSION selector.
 // Imported modules are copied beneath the state root and selected as third-party:NAME.
 // The same local name can exist in both without collision.
 // [Registry] receives standard catalog metadata from internal/nixos; it does not embed or evaluate Nix code.
+// [Registry.Check] rejects unknown selections before VM preparation without allocating state.
 //
 // # Import and consumption
 //

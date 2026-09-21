@@ -62,6 +62,10 @@ func (m *Manager) preflight(ctx context.Context, cfg config.Config) error {
 		return ErrRootUser
 	}
 
+	if err := m.generations.modules.Check(ctx, cfg.NixOS.Modules); err != nil {
+		return err
+	}
+
 	if err := m.backend.Preflight(ctx, cfg); err != nil {
 		return err
 	}
