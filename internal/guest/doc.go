@@ -15,6 +15,8 @@
 // [Guest.Apply] installs runtime ENV before rebuilding. A failed rebuild returns without rebooting; environment
 // installation may already have happened. Successful rebuilds restart through the client and check that the regular
 // development user can execute a command.
+// Rebuilds run in a transient guest systemd unit. Cancellation stops that unit before returning; it does not stop
+// the VM or roll back changes already applied. Failure to confirm the stop is reported as an error.
 //
 // # Sessions and address discovery
 //
@@ -22,9 +24,10 @@
 // An empty argument list opens a login shell. The management account and the development account are distinct.
 //
 // [Guest.Address] probes running guests only when a shared-network MAC is known. It matches that MAC in ip -j address
-// output and selects a global IPv4 address. A timeout, SSH failure, or unavailable address yields an empty string, not a
-// listing failure. The client must support concurrent address probes.
+// output and selects a global IPv4 address. An individual probe timeout, SSH failure, or unavailable address yields
+// an empty string. The listing layer propagates cancellation of the parent operation. The client must support
+// concurrent address probes.
 //
-// Read apply.go for provisioning order, shell.go for user switching and argument handling, and address.go for
+// Read apply.go for provisioning order, rebuild.go for cancellation, shell.go for user switching, and address.go for
 // best-effort network discovery.
 package guest

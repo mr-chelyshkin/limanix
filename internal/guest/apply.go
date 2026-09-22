@@ -54,14 +54,3 @@ func (guest *Guest) installEnvironment(ctx context.Context, name string) error {
 
 	return nil
 }
-
-func (guest *Guest) buildGeneration(ctx context.Context, name string) error {
-	command := []string{
-		"sudo", "nixos-rebuild", "boot",
-		"--flake", "path:/mnt/limanix/flake#runtime",
-		"--no-write-lock-file",
-	}
-
-	_, err := guest.client.Run(ctx, name, command, false)
-	return err
-}

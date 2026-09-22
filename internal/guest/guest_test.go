@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -27,6 +28,15 @@ type fakeClient struct {
 	failureAt   int
 	shellStatus int
 	run         func(context.Context) (string, error)
+}
+
+type rebuildClient struct {
+	Client
+	run func(context.Context, []string) (string, error)
+}
+
+func (client *rebuildClient) Run(ctx context.Context, _ string, args []string, _ bool) (string, error) {
+	return client.run(ctx, args)
 }
 
 func (client *fakeClient) Run(ctx context.Context, _ string, args []string, capture bool) (string, error) {
@@ -74,8 +84,17 @@ func TestApplyInstallsEnvironmentAndRebootsOnlyAfterBuild(t *testing.T) {
 			t.Fatal("runtime ENV must be available guest-wide before rebuild")
 		}
 	}
-	if client.calls[3].capture || client.calls[3].args[1] != "nixos-rebuild" || client.calls[4].operation != "stop" || client.calls[5].operation != "start" || client.calls[6].args[len(client.calls[6].args)-1] != "true" {
+	build := client.calls[3]
+	if build.capture || !slices.Contains(build.args, "/run/current-system/sw/bin/nixos-rebuild") {
+		t.Fatalf("rebuild must stream its output: %v", build)
+	}
+	if client.calls[4].operation != "stop" || client.calls[5].operation != "start" || client.calls[6].args[len(client.calls[6].args)-1] != "true" {
 		t.Fatalf("unexpected rebuild/reboot order: %v", client.calls)
+	}
+	for _, option := range []string{"--service-type=oneshot", "--property=TimeoutStartSec=infinity", "--property=KillMode=control-group"} {
+		if !slices.Contains(build.args, option) {
+			t.Fatalf("missing rebuild supervision option: %s", option)
+		}
 	}
 	client = &fakeClient{failureAt: 4}
 	if err := New(client).Apply(context.Background(), "sandbox", "developer"); err == nil {
@@ -83,6 +102,65 @@ func TestApplyInstallsEnvironmentAndRebootsOnlyAfterBuild(t *testing.T) {
 	}
 	if len(client.calls) != 4 {
 		t.Fatal("failed build rebooted the guest")
+	}
+}
+
+func TestRebuildCancellationWaitsForGuest(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		stopFailure bool
+	}{
+		{name: "late-start"},
+		{name: "stop-failure", stopFailure: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			stopped := make(chan struct{})
+			var release sync.Once
+			var unit string
+			attempts := 0
+			failure := errors.New("guest stop failed")
+			client := &rebuildClient{run: func(session context.Context, args []string) (string, error) {
+				if args[1] == "systemd-run" {
+					unit = strings.TrimPrefix(args[2], "--unit=")
+					cancel()
+					if err := session.Err(); err != nil {
+						t.Errorf("SSH closed before guest stop: %v", err)
+					}
+					<-stopped
+					return "", errors.New("service terminated")
+				}
+
+				if !reflect.DeepEqual(args, []string{"sudo", "systemctl", "stop", unit}) || session.Err() != nil {
+					t.Errorf("invalid cleanup command or context: %v, %v", args, session.Err())
+				}
+				if _, bounded := session.Deadline(); !bounded {
+					t.Error("cleanup has no deadline")
+				}
+
+				attempts++
+				if attempts == 1 && !test.stopFailure {
+					return "", errors.New("unit not loaded yet")
+				}
+
+				release.Do(func() { close(stopped) })
+				if test.stopFailure {
+					return "", failure
+				}
+				return "", nil
+			}}
+
+			err := New(client).buildGeneration(ctx, "sandbox")
+			if test.stopFailure {
+				if !errors.Is(err, failure) || errors.Is(err, context.Canceled) {
+					t.Fatalf("stop failure hidden by cancellation: %v", err)
+				}
+			} else if !errors.Is(err, context.Canceled) || attempts < 2 {
+				t.Fatalf("launch race escaped cleanup: attempts=%d, error=%v", attempts, err)
+			}
+		})
 	}
 }
 

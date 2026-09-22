@@ -14,6 +14,10 @@ const addressProbeConcurrency = 4
 
 // FetchAll lists every saved VM, including damaged or interrupted records.
 func (m *Manager) FetchAll(ctx context.Context) ([]Info, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	entries, err := m.store.FetchAll()
 	if err != nil {
 		return nil, err
@@ -31,11 +35,15 @@ func (m *Manager) FetchAll(ctx context.Context) ([]Info, error) {
 	for index, entry := range entries {
 		probes.Go(func() error {
 			result[index] = m.instanceInfo(ctx, entry, instances)
-			return nil
+			return ctx.Err()
 		})
 	}
 
-	return result, probes.Wait()
+	if err = probes.Wait(); err != nil {
+		return nil, err
+	}
+
+	return result, ctx.Err()
 }
 
 func (m *Manager) listBackend(ctx context.Context, entries []state.Entry) (map[string]lima.Instance, error) {

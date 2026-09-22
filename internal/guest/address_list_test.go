@@ -2,6 +2,7 @@ package guest_test
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -19,6 +20,7 @@ type addressListBackend struct {
 	*lima.Client
 	instances   []lima.Instance
 	unreachable string
+	cancel      context.CancelFunc
 }
 
 func (backend *addressListBackend) FetchAll(context.Context) ([]lima.Instance, error) {
@@ -26,6 +28,10 @@ func (backend *addressListBackend) FetchAll(context.Context) ([]lima.Instance, e
 }
 
 func (backend *addressListBackend) Run(ctx context.Context, name string, _ []string, _ bool) (string, error) {
+	if backend.cancel != nil {
+		backend.cancel()
+		return "", ctx.Err()
+	}
 	if name == backend.unreachable {
 		return "", context.DeadlineExceeded
 	}
@@ -70,14 +76,15 @@ func TestVMListRetainsHealthyRowsAfterAddressProbeFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	entries, err := vm.New(vm.Dependencies{
+	manager := vm.New(vm.Dependencies{
 		Modules: modules.NewRegistry(store, metadata),
 		Homes:   &managedhome.Manager{},
 		Guest:   guest.New(backend),
 		Backend: backend,
 		Store:   store,
 		HostUID: 501,
-	}).FetchAll(ctx)
+	})
+	entries, err := manager.FetchAll(ctx)
 	if err != nil || len(entries) != 2 {
 		t.Fatalf("an unavailable address blocked VM listing: entries=%v, error=%v", entries, err)
 	}
@@ -86,5 +93,13 @@ func TestVMListRetainsHealthyRowsAfterAddressProbeFailure(t *testing.T) {
 	}
 	if entries[1].Name != "b-healthy" || entries[1].Address != "192.0.2.10" || entries[1].Error != nil {
 		t.Fatalf("failed address probe prevented healthy VM listing: %#v", entries[1])
+	}
+
+	canceled, cancel := context.WithCancel(ctx)
+	defer cancel()
+	backend.cancel = cancel
+
+	if entries, err := manager.FetchAll(canceled); !errors.Is(err, context.Canceled) || entries != nil {
+		t.Fatalf("caller cancellation became a successful list: entries=%v, error=%v", entries, err)
 	}
 }
