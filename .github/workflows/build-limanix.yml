@@ -1,0 +1,45 @@
+name: Build Limanix
+
+on:
+  workflow_call:
+    inputs:
+      release-tag:
+        description: Release version embedded in the binaries. Empty for development builds.
+        type: string
+        default: ''
+      artifact-name:
+        description: Artifact to upload after building. Empty skips the upload.
+        type: string
+        default: ''
+    outputs:
+      artifact-name:
+        description: Name of the uploaded binary artifact.
+        value: ${{ jobs.build.outputs.artifact-name }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    outputs:
+      artifact-name: ${{ inputs.artifact-name }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Build and sign macOS binaries
+        uses: mr-chelyshkin/actions/invoke-taskfile@v1
+        env:
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        with: { command: ci/build }
+      - name: Upload binaries
+        if: inputs.artifact-name != ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: bin/*
+          if-no-files-found: error
+          retention-days: 7

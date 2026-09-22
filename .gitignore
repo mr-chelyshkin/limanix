@@ -1,25 +1,43 @@
 # Local environment and private VM configurations
-/.venv/
 /vm/
 .env
 .env.*
 
-# Python and tooling caches
-__pycache__/
-*.py[cod]
-.ruff_cache/
-.mypy_cache/
-
-# Distribution artifacts
+# Build artifacts
 /build/
-/dist/
-*.egg-info/
+/bin/
 
-# Generated documentation sources
+# Documentation and cache
 /docs/_generated/
+/docs/resources/
+/docs/public/
+/.hugo_build.lock
+/docs/.hugo_build.lock
+
+# Packaged Lima guest agents and socket_vmnet release archives
+/internal/bundle/resources/*.gz
+/internal/bundle/resources/manifest.json
+/internal/bundle/resources/.bundle-guestagent-*/
+
+# Standard NixOS catalog downloaded by bundle-modules
+/internal/nixos/resources/modules.zip
 
 # OS files
 .DS_Store
+
+# Terraform
+/tf/**/terraform.tfstate.d/
+/tf/**/.terraform/
+
+/tf/**/tfplan
+/tf/**/*.tfplan
+/tf/**/*.tfvars
+/tf/**/*.tfstate
+/tf/**/*.tfstate.*
+/tf/**/*.tfvars.json
+!/tf/**/*.tfvars.example
+!/tf/**/.terraform.lock.hcl
+/tf/**/.terraform.tfstate.lock.info
 
 # IDE
 .vscode/
@@ -28,3 +46,6 @@ __pycache__/
 # Task runner cache
 .cache/
 .task/
+
+# vendor
+vendor/

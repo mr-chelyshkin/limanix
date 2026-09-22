@@ -1,0 +1,23 @@
+# Import examples/modules/dev-tools before creating this VM.
+# Copy this file into your project directory as limanix.toml.
+schema_version = 1
+name = "custom-tools"
+env = {}
+
+[resources]
+# Use amd64 on an Intel Mac.
+arch = "arm64"
+cpu = 2
+mem = "4GiB"
+disk = "10GiB"
+
+[nixos]
+modules = ["lmx:git", "third-party:dev-tools"]
+
+[network.ports]
+tcp = []
+udp = []
+
+[[mounts]]
+source = "."
+target = "/workspace"

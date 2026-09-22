@@ -1,0 +1,28 @@
+# Copy this file into your Rust project's directory as limanix.toml.
+# Relative mount sources resolve from this configuration file's directory.
+schema_version = 1
+name = "rust-service"
+
+[resources]
+# Use amd64 on an Intel Mac.
+arch = "arm64"
+cpu = 2
+mem = "4GiB"
+disk = "10GiB"
+
+[nixos]
+modules = ["lmx:git", "lmx:rust", "lmx:neovim"]
+
+[env]
+APP_ENV = "development"
+RUST_LOG = "debug"
+CARGO_TARGET_DIR = "/home/dev/.cache/cargo-target"
+
+[network.ports]
+tcp = [8080]
+udp = []
+
+[[mounts]]
+source = "."
+target = "/workspace"
+# Omitted mode defaults to rw.

@@ -1,0 +1,5 @@
+{{- with resources.Get "limanix.example.toml" -}}
+  <a href="{{ .RelPermalink }}" download>limanix.example.toml</a>
+{{- else -}}
+  {{- errorf "The generated limanix.example.toml is missing: %s" .Position -}}
+{{- end -}}

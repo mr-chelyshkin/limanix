@@ -1,47 +1,76 @@
-name: Release Python package
+name: Release Limanix
 
 on:
   push:
     tags: ['v*']
 
 concurrency:
-  group: tag-release-${{ github.ref }}
-  cancel-in-progress: false
+  group: limanix-release
+  queue: max
 
 permissions:
   contents: read
 
 jobs:
-  package:
-    uses: mr-chelyshkin/actions/.github/workflows/tag-python-package.yml@v1
-
-  publish:
-    name: Publish to PyPI
-    needs: package
+  verify:
     runs-on: ubuntu-24.04
-    environment:
-      name: pypi
-      url: https://pypi.org/p/limanix
-    permissions:
-      id-token: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v6
         with:
-          name: ${{ needs.package.outputs.artifact-name }}
-          path: dist
-      - uses: pypa/gh-action-pypi-publish@release/v1
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: mr-chelyshkin/actions/check-tag-branch@v1
+        with:
+          branch: main
+
+  limanix-build:
+    name: limanix
+    needs: verify
+    uses: ./.github/workflows/build-limanix.yml
+    with:
+      release-tag: ${{ github.ref_name }}
+      artifact-name: limanix-bin-${{ github.sha }}
+
+  docs-build:
+    name: docs
+    needs: verify
+    uses: ./.github/workflows/build-docs.yml
+    with:
+      release-tag: ${{ github.ref_name }}
+      base-url: https://${{ vars.SITE_DOMAIN_NAME }}/
+      artifact-name: limanix-docs-${{ github.sha }}
+
+  docs-publish:
+    name: docs
+    needs: [limanix-build, docs-build]
+    uses: mr-chelyshkin/actions/.github/workflows/tag-aws-s3-static-release.yml@v1
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      artifact-name: ${{ needs.docs-build.outputs.artifact-name }}
+      immutable-assets: false
+      terraform-workdir: tf
+      aws-region: ${{ vars.AWS_REGION }}
+      terraform-state-bucket: ${{ vars.TF_STATE_BUCKET }}
+      terraform-state-key: ${{ vars.TF_STATE_KEY }}
+      terraform-state-region: ${{ vars.TF_STATE_REGION }}
+      terraform-role-arn: ${{ vars.AWS_TERRAFORM_DEPLOY_ROLE_ARN }}
+      domain-name: ${{ vars.SITE_DOMAIN_NAME }}
+      site-bucket-name: ${{ vars.SITE_BUCKET_NAME }}
+      acm-certificate-arn: ${{ vars.SITE_ACM_CERTIFICATE_ARN }}
 
   release:
     name: Create GitHub release
-    needs: [package, publish]
+    needs: [limanix-build, docs-publish]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: ${{ needs.package.outputs.artifact-name }}
-          path: dist
+          name: ${{ needs.limanix-build.outputs.artifact-name }}
+          path: bin
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
@@ -50,6 +79,4 @@ jobs:
           prerelease: false
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: |
-            dist/*.whl
-            dist/*.tar.gz
+          files: bin/*
