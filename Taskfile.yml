@@ -14,7 +14,7 @@ includes:
     internal: false
 
 vars:
-  limanix_modules_version: 'v0.0.1'
+  limanix_modules_version: 'v0.0.2'
   hugo_version: '0.166.0'
   macos_version: '26.0'
   socket_vmnet:
