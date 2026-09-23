@@ -69,8 +69,40 @@ and helper installation reject missing build inputs.
    `module.toml` alongside it. Names and descriptions are read from this catalog.
    Versioned modules also declare `default` and `versions` in that file, with
    entry points at `modules/<name>/versions/<version>.nix`.
-2. Set `limanix_modules_version` in Taskfile to that exact tag, including any prefix.
-3. Run `task --yes ci/test ci/build` and verify the changed modules in a VM.
+2. The module release sends a `limanix-modules-release` repository dispatch with
+   `client_payload.tag`. Limanix opens a separate `deps/limanix-modules/<tag>` PR
+   that updates only `limanix_modules_version` in Taskfile.
+3. The release bot verifies the published module release and the exact PR diff,
+   then squash-merges it without running the full PR checks. The commit and PR
+   link to the module release; the PR is included in generated release notes.
+4. The bot creates the next patch tag on that merge commit: `v0.3.99` becomes
+   `v0.3.100`. The existing tag workflow builds the binaries and documentation
+   before publishing. A failed build leaves the tag but publishes no new binary.
+
+The `release-limanix-modules.yml` workflow has two jobs: `update` merges the
+catalog PR and passes its commit SHA to `tag`. Dispatches are processed one at
+a time; equal or older catalog versions leave `main` unchanged.
+
+If `tag` fails after merge, choose **Re-run failed jobs** to retry tagging the
+same commit without repeating the update. An existing release tag is not moved
+or duplicated. Sending another dispatch does not recover a merged update:
+the catalog version is already current. If `update` fails after the PR has
+merged but before its SHA was saved, inspect the merge commit before creating
+its release tag manually. If the tag exists and its build fails, rerun that
+tag's release workflow instead.
+
+### Release bot setup
+
+Install a dedicated GitHub App on `mr-chelyshkin/limanix` with **Contents: write**
+and **Pull requests: write**. In Limanix's Actions settings, configure variables
+`RELEASE_APP_CLIENT_ID` and `RELEASE_APP_SLUG`, plus the PEM private key as secret
+`RELEASE_APP_PRIVATE_KEY`. The modules repository needs the same client ID and
+private key for dispatching; it requests only Contents permission on Limanix.
+
+Add this App to the `main` ruleset's bypass list with **For pull requests only**.
+Do not grant an unconditional bypass or administrative App permissions.
+Ordinary PRs keep the existing CI and protection rules. Bot-owned module branches
+are reserved for this workflow; user-authored PR events still run the normal CI.
 
 No Go change is needed to add a module that follows this contract. Changing the
 catalog format or guest integration contract may require code changes.
