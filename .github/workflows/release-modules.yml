@@ -1,0 +1,175 @@
+name: Release module update
+
+on:
+  repository_dispatch:
+    types: [limanix-modules-release]
+
+concurrency:
+  group: limanix-module-updates
+  queue: max
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    name: Update module catalog
+    runs-on: ubuntu-24.04
+    outputs:
+      merge-sha: ${{ steps.merge.outputs.merge-sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Create release token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: limanix
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Prepare module update
+        id: modules
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          MODULES_TAG: ${{ github.event.client_payload.tag }}
+          RELEASE_APP_SLUG: ${{ vars.RELEASE_APP_SLUG }}
+          TOKEN_APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+
+          stable='v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
+          [[ "$MODULES_TAG" =~ ^$stable$ ]] || { echo '::error::Expected a stable vMAJOR.MINOR.PATCH module tag'; exit 1; }
+          [[ -n "$RELEASE_APP_SLUG" && "$RELEASE_APP_SLUG" == "$TOKEN_APP_SLUG" ]] || { echo '::error::Release App slug mismatch'; exit 1; }
+          gh api "repos/mr-chelyshkin/limanix-modules/releases/tags/$MODULES_TAG" |
+            jq -e --arg tag "$MODULES_TAG" \
+              '.tag_name == $tag and .draft == false and .prerelease == false and .published_at != null' > /dev/null
+
+          [[ "$(grep -c '^  limanix_modules_version:' Taskfile.yml)" == 1 ]] || { echo '::error::Expected one catalog version in Taskfile.yml'; exit 1; }
+          previous=$(sed -nE "s/^  limanix_modules_version: '($stable)'$/\1/p" Taskfile.yml)
+          [[ "$previous" =~ ^$stable$ ]] || { echo '::error::Invalid catalog version in Taskfile.yml'; exit 1; }
+          if [[ "$(printf '%s\n' "$previous" "$MODULES_TAG" | sort -V | tail -n 1)" == "$previous" ]]; then
+            echo "::notice::Catalog $previous already includes $MODULES_TAG; no update needed"
+            exit 0
+          fi
+
+          sed -i -E "s/^  limanix_modules_version: '$stable'$/  limanix_modules_version: '$MODULES_TAG'/" Taskfile.yml
+          git add -- Taskfile.yml
+          {
+            echo "tag=$MODULES_TAG"
+            echo "previous-tag=$previous"
+            echo "tree=$(git write-tree)"
+          } >> "$GITHUB_OUTPUT"
+      - name: Create module update PR
+        if: steps.modules.outputs.tag != ''
+        id: pr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          base: main
+          branch: deps/limanix-modules/${{ steps.modules.outputs.tag }}
+          add-paths: Taskfile.yml
+          labels: deps
+          title: 'deps: update limanix-modules to ${{ steps.modules.outputs.tag }}'
+          commit-message: |
+            deps: update limanix-modules to ${{ steps.modules.outputs.tag }}
+
+            Modules release: https://github.com/mr-chelyshkin/limanix-modules/releases/tag/${{ steps.modules.outputs.tag }}
+          body: |
+            Update the bundled module catalog from `${{ steps.modules.outputs.previous-tag }}` to `${{ steps.modules.outputs.tag }}`.
+
+            - [Module release](https://github.com/mr-chelyshkin/limanix-modules/releases/tag/${{ steps.modules.outputs.tag }})
+            - [Module changes](https://github.com/mr-chelyshkin/limanix-modules/compare/${{ steps.modules.outputs.previous-tag }}...${{ steps.modules.outputs.tag }})
+
+            Only the catalog tag in Taskfile changes. This PR is merged automatically;
+            the resulting patch tag starts the binary and documentation release.
+      - name: Verify and merge module update
+        if: steps.pr.outputs.pull-request-number != ''
+        id: merge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          MODULES_TAG: ${{ steps.modules.outputs.tag }}
+          EXPECTED_TREE: ${{ steps.modules.outputs.tree }}
+          PR_NUMBER: ${{ steps.pr.outputs.pull-request-number }}
+          PR_HEAD_SHA: ${{ steps.pr.outputs.pull-request-head-sha }}
+          RELEASE_APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+
+          gh api "repos/$GH_REPO/pulls/$PR_NUMBER" |
+            jq -e --arg bot "${RELEASE_APP_SLUG}[bot]" --arg repo "$GH_REPO" \
+              --arg branch "deps/limanix-modules/$MODULES_TAG" --arg sha "$PR_HEAD_SHA" '
+                .state == "open" and .merged == false and .user.login == $bot and
+                .base.ref == "main" and .head.repo.full_name == $repo and
+                .head.ref == $branch and .head.sha == $sha
+              ' > /dev/null
+
+          actual_tree=$(gh api "repos/$GH_REPO/git/commits/$PR_HEAD_SHA" --jq '.tree.sha')
+          if [[ "$actual_tree" != "$EXPECTED_TREE" ]]; then
+            echo '::error::PR contents differ from the prepared catalog-only update'
+            exit 1
+          fi
+
+          gh api --method PUT "repos/$GH_REPO/pulls/$PR_NUMBER/merge" \
+            -f merge_method=squash -f "sha=$PR_HEAD_SHA" \
+            -f "commit_title=deps: update limanix-modules to $MODULES_TAG (#$PR_NUMBER)" \
+            -f "commit_message=Modules release: https://github.com/mr-chelyshkin/limanix-modules/releases/tag/$MODULES_TAG" \
+            --jq 'if .merged then "merge-sha=" + .sha else error(.message) end' >> "$GITHUB_OUTPUT"
+
+  tag:
+    name: Create patch tag
+    needs: update
+    if: needs.update.outputs.merge-sha != ''
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.update.outputs.merge-sha }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Create release token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: limanix
+          permission-contents: write
+      - name: Increment patch version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          MERGE_SHA: ${{ needs.update.outputs.merge-sha }}
+        run: |
+          set -euo pipefail
+
+          stable='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          if git tag --points-at "$MERGE_SHA" | grep -E "$stable"; then
+            echo '::notice::Merge commit already has a release tag'
+            exit 0
+          fi
+
+          latest=$(git tag --sort=version:refname | sed -nE "/$stable/p" | tail -n 1)
+          if [[ -z "$latest" ]]; then
+            echo '::error::Create the initial Limanix release before automatic patch releases'
+            exit 1
+          fi
+          if git merge-base --is-ancestor "$MERGE_SHA" "$latest"; then
+            echo "::notice::$latest already includes this update"
+            exit 0
+          fi
+          git merge-base --is-ancestor "$latest" "$MERGE_SHA"
+
+          next=$(node -p 'const parts = process.argv[1].split("."); parts[2] = BigInt(parts[2]) + 1n; parts.join(".")' "$latest")
+          gh api --method POST "repos/$GH_REPO/git/refs" -f "ref=refs/tags/$next" -f "sha=$MERGE_SHA"
+          echo "::notice::Created $next at $MERGE_SHA"

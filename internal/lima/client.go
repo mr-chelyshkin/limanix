@@ -12,9 +12,6 @@ import (
 )
 
 // Client operates Lima's store, drivers and instance lifecycle in-process.
-// Lima starts this executable's hidden hostagent command; no limactl installation is involved.
-// The guest-agent provider returns the packaged agent for each guest.
-// Its zero value is not usable; construct a Client with NewClient.
 type Client struct {
 	Stdin  io.Reader
 	Stdout io.Writer
