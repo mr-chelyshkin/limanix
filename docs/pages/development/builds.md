@@ -79,7 +79,7 @@ and helper installation reject missing build inputs.
    `v0.3.100`. The existing tag workflow builds the binaries and documentation
    before publishing. A failed build leaves the tag but publishes no new binary.
 
-The `release-limanix-modules.yml` workflow has two jobs: `update` merges the
+The `release-modules.yml` workflow has two jobs: `update` merges the
 catalog PR and passes its commit SHA to `tag`. Dispatches are processed one at
 a time; equal or older catalog versions leave `main` unchanged.
 
